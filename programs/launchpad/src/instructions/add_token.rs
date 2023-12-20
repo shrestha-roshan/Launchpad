@@ -11,9 +11,6 @@ pub struct AddTokenParams {
 }
 
 pub fn handler(ctx: Context<AddToken>, params: &AddTokenParams) -> Result<()> {
-    let auction = &mut ctx.accounts.auction;
-    let auction_vault = &mut ctx.accounts.auction;
-    let auction_token = &mut ctx.accounts.auction_token;
     let from = &mut ctx.accounts.owner;
     let to = &mut ctx.accounts.auction_vault_token_account;
     let token_program = ctx.accounts.token_program.to_account_info();
@@ -23,8 +20,9 @@ pub fn handler(ctx: Context<AddToken>, params: &AddTokenParams) -> Result<()> {
         to: to.to_account_info(),
         authority: from.to_account_info(),
     };
-    
+
     let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new(token_program, transfer);
+    anchor_spl::token::transfer(ctx, params.token_amount)?;
     Ok(())
 }
 
