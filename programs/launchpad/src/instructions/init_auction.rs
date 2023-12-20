@@ -6,7 +6,6 @@ use crate::state::auction::Auction;
 pub struct InitAuctionParams {
     pub enabled: bool,
     pub fixed_amount: bool,
-    pub name: String,
     pub start_time: i64,
     pub end_time: i64,
     pub unit_price: u64,
@@ -22,7 +21,6 @@ pub fn handler(ctx: Context<InitAuction>, params: &InitAuctionParams) -> Result<
     auction.start_time = params.start_time;
     auction.end_time = params.end_time;
     auction.token_cap = params.token_cap;
-    auction.name = params.name.clone();
     auction.remaining_tokens = params.token_cap;
     Ok(())
 }
@@ -36,7 +34,7 @@ pub struct InitAuction<'info> {
         init,   
         payer = owner,
         space = 8 + std::mem::size_of::<Auction>(),
-        seeds = [b"auction", params.name.as_bytes()],
+        seeds = [b"auction"],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,

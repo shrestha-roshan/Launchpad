@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::{error::LaunchpadError, state::Auction};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount, Transfer},
+    token::{Mint, TokenAccount, Transfer},
 };
 
 #[derive(Accounts)]
@@ -13,7 +13,7 @@ pub struct BuyTokensUsdt<'info> {
     pub buyer: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [b"auction", auction.name.as_bytes()],
+        seeds = [b"auction"],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
@@ -27,6 +27,7 @@ pub struct BuyTokensUsdt<'info> {
     pub auction_vault_usdc_account: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
     pub usdc_mint: Box<Account<'info, Mint>>,
+    /// CHECK:
     pub token_program: AccountInfo<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub clock: Sysvar<'info, Clock>,
