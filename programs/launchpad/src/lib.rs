@@ -2,6 +2,7 @@
 
 // #![allow(clippy::result_large_err)]
 use anchor_lang::prelude::*;
+mod error;
 mod instructions;
 mod state;
 
@@ -20,5 +21,9 @@ mod launchpad {
 
     pub fn add_token(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
         add_token::handler(ctx, &params)
+    }
+
+    pub fn buy_token_using_usdt(ctx: Context<BuyTokensUsdt>, usdc_amount: u64) -> Result<()> {
+        buy_token_using_usdt::handler(ctx, usdc_amount)
     }
 }

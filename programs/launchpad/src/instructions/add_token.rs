@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Token, TokenAccount, Transfer},
+    token::{Mint, Token, TokenAccount, Transfer},
 };
 
 use crate::state::auction::Auction;
@@ -33,17 +33,18 @@ pub struct AddToken<'info> {
     pub auction_token: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [b"auction", auction.name.as_bytes(), owner.key().as_ref()],
+        seeds = [b"auction", auction.name.as_bytes()],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
     #[account(
         init_if_needed,
         payer = owner,
-        associated_token::mint = auction_token,
+        associated_token::mint = auction_token_mint,
         associated_token::authority = auction,
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
+    pub auction_token_mint: Account<'info, Mint>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,

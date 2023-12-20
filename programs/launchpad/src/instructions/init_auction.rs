@@ -9,7 +9,7 @@ pub struct InitAuctionParams {
     pub name: String,
     pub start_time: i64,
     pub end_time: i64,
-    pub unit_price: i64,
+    pub unit_price: u64,
     pub token_cap: u64,
 }
 
@@ -23,6 +23,7 @@ pub fn handler(ctx: Context<InitAuction>, params: &InitAuctionParams) -> Result<
     auction.end_time = params.end_time;
     auction.token_cap = params.token_cap;
     auction.name = params.name.clone();
+    auction.remaining_tokens = params.token_cap;
     Ok(())
 }
 
