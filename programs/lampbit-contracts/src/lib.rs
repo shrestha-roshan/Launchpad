@@ -1,15 +1,19 @@
-use anchor_lang::prelude::*;
+//! Launchpad program entrypoint
 
-declare_id!("7xVm78pUZb9M8SNqtB2nMHFnkJXTL2HXnkQUJFBbv4ZP");
+#![allow(clippy::result_large_err)]
+use anchor_lang::prelude::*;
+mod instructions;
+mod state;
+
+use {anchor_lang::prelude::*, instructions::*};
+
+declare_id!("LPD1BCWvd499Rk7aG5zG8uieUTTqba1JaYkUpXjUN9q");
 
 #[program]
-pub mod lampbit_contracts {
+pub mod launchpad {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        Ok(())
+    pub fn init_auction(ctx: Context<InitAuction>) -> Result<()> {
+        deposit_sol::handler(ctx, amount)
     }
 }
-
-#[derive(Accounts)]
-pub struct Initialize {}
