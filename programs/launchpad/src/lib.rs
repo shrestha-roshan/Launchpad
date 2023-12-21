@@ -23,9 +23,14 @@ mod launchpad {
         add_token::handler(ctx, params)
     }
 
-    pub fn buy_token_using_usdt(ctx: Context<BuyTokensUsdt>, usdc_amount: u64) -> Result<()> {
-        buy_token_using_usdt::handler(ctx, usdc_amount)
+    pub fn buy_token_using_spl(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
+        buy_token_using_spl::handler(ctx, spl_amount)
     }
+
+    /** Under Development **/
+    // pub fn buy_token_using_sol(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
+    //     buy_token_using_sol::handler(ctx, sol_amount)
+    // }
 
     pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
         withdraw_funds::handler(ctx)

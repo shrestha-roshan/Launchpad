@@ -7,7 +7,7 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-pub struct BuyTokensUsdt<'info> {
+pub struct BuyTokensSpl<'info> {
     #[account(signer)]
     /// CHECK:
     pub buyer: AccountInfo<'info>,
@@ -24,24 +24,29 @@ pub struct BuyTokensUsdt<'info> {
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub auction_vault_usdc_account: Box<Account<'info, TokenAccount>>,
+    pub auction_vault_spl_account: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
-    pub usdc_mint: Box<Account<'info, Mint>>,
+    pub spl_mint: Box<Account<'info, Mint>>,
     /// CHECK:
     pub token_program: AccountInfo<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub clock: Sysvar<'info, Clock>,
 }
 
-pub fn handler(ctx: Context<BuyTokensUsdt>, usdc_amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     let buyer = ctx.accounts.buyer.clone();
     let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
-    let auction_vault_usdc_account = ctx.accounts.auction_vault_usdc_account.clone();
+    let auction_vault_spl_account = ctx.accounts.auction_vault_spl_account.clone();
     let token_program = ctx.accounts.token_program.as_ref();
 
+    // Ensure that the auction is enabled for spl payments
+    if auction.pay_with_native {
+        return Err(LaunchpadError::NonSplAuction.into());
+    }
+
     // amount of token to send to buyer
-    let token_amount_to_buy = usdc_amount * auction.unit_price;
+    let token_amount_to_buy = spl_amount * auction.unit_price;
 
     // Ensure that the auction is initialized and live
     if !auction.enabled
@@ -67,18 +72,16 @@ pub fn handler(ctx: Context<BuyTokensUsdt>, usdc_amount: u64) -> Result<()> {
         CpiContext::new(token_program.to_account_info(), transfer);
     anchor_spl::token::transfer(ctx, token_amount_to_buy)?;
 
-    // record the amount of tokens the buyer has purchased in auction
-
-    // Transfer USDT from buyer to auction
-    let transfer_usdt = Transfer {
+    // Transfer spl from buyer to auction
+    let transfer_spl = Transfer {
         from: buyer.to_account_info(),
-        to: auction_vault_usdc_account.to_account_info(),
+        to: auction_vault_spl_account.to_account_info(),
         authority: buyer,
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> =
-        CpiContext::new(token_program.to_account_info(), transfer_usdt);
-    anchor_spl::token::transfer(ctx, usdc_amount)?;
+        CpiContext::new(token_program.to_account_info(), transfer_spl);
+    anchor_spl::token::transfer(ctx, spl_amount)?;
 
     // Update the remaining tokens in the auction
     auction.remaining_tokens -= token_amount_to_buy;

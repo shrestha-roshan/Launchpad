@@ -14,4 +14,8 @@ pub enum LaunchpadError {
     AuctionNotEnded,
     #[msg("Auction Disabled")]
     AuctionDisabled,
+    #[msg("Non Native Auction")]
+    NonNativeAuction,
+    #[msg("Non SPL Auction")]
+    NonSplAuction,
 }

@@ -11,6 +11,7 @@ pub struct InitAuctionParams {
     pub end_time: i64,
     pub unit_price: u64,
     pub token_cap: u64,
+    pub pay_with_native: bool,
 }
 
 pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
@@ -23,6 +24,7 @@ pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<(
     auction.end_time = params.end_time;
     auction.token_cap = params.token_cap;
     auction.remaining_tokens = params.token_cap;
+    auction.pay_with_native = params.pay_with_native;
     Ok(())
 }
 

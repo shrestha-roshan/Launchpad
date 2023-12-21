@@ -34,17 +34,30 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         anchor_spl::token::transfer(ctx, auction.remaining_tokens)?;
     }
 
-    // Transfer USDC if tokens have been sold
-    if auction.token_cap != auction.remaining_tokens {
-        let usdc_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
+    // Transfer spl if tokens have been sold
+    if auction.token_cap != auction.remaining_tokens && !auction.pay_with_native {
+        let spl_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let transfer = Transfer {
-            from: ctx.accounts.auction_vault_usdc_account.to_account_info(),
-            to: ctx.accounts.creator_usdc_account.to_account_info(),
+            from: ctx.accounts.auction_vault_spl_account.to_account_info(),
+            to: ctx.accounts.creator_spl_account.to_account_info(),
             authority: ctx.accounts.auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
             CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer);
-        anchor_spl::token::transfer(ctx, usdc_amount)?;
+        anchor_spl::token::transfer(ctx, spl_amount)?;
+    }
+
+    //Transfer sol if tokens have been sold
+    if auction.token_cap != auction.remaining_tokens && auction.pay_with_native {
+        let sol_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
+        let transfer_sol = Transfer {
+            from: ctx.accounts.auction.to_account_info(),
+            to: ctx.accounts.creator.to_account_info(),
+            authority: ctx.accounts.auction.to_account_info(),
+        };
+        let ctx: CpiContext<'_, '_, '_, '_, _> =
+            CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_sol);
+        anchor_spl::token::transfer(ctx, sol_amount)?;
     }
 
     // Reset the auction state
@@ -56,6 +69,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     auction.end_time = 0;
     auction.token_cap = 0;
     auction.remaining_tokens = 0;
+    auction.pay_with_native = false;
     Ok(())
 }
 
@@ -78,18 +92,18 @@ pub struct WithdrawFunds<'info> {
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = auction_vault_usdc_account.owner == auction.key(),
-        constraint = auction_vault_usdc_account.mint == usdc_mint.key()
+        constraint = auction_vault_spl_account.owner == auction.key(),
+        constraint = auction_vault_spl_account.mint == spl_mint.key()
     )]
-    pub auction_vault_usdc_account: Box<Account<'info, TokenAccount>>,
+    pub auction_vault_spl_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = creator_usdc_account.owner == creator.key(),
-        constraint = creator_usdc_account.mint == usdc_mint.key()
+        constraint = creator_spl_account.owner == creator.key(),
+        constraint = creator_spl_account.mint == spl_mint.key()
     )]
-    pub creator_usdc_account: Box<Account<'info, TokenAccount>>,
+    pub creator_spl_account: Box<Account<'info, TokenAccount>>,
     pub auction_mint: Box<Account<'info, Mint>>,
-    pub usdc_mint: Box<Account<'info, Mint>>,
+    pub spl_mint: Box<Account<'info, Mint>>,
     /// CHECK:
     pub token_program: AccountInfo<'info>,
     pub clock: Sysvar<'info, Clock>,

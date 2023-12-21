@@ -30,7 +30,6 @@ pub fn handler(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
 pub struct AddToken<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
-    pub auction_token: Account<'info, TokenAccount>,
     #[account(
         mut,
         seeds = [b"auction", auction.name.as_bytes()],

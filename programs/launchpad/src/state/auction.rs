@@ -12,4 +12,5 @@ pub struct Auction {
     pub start_time: i64,
     pub end_time: i64,
     pub remaining_tokens: u64,
+    pub pay_with_native: bool,
 }
