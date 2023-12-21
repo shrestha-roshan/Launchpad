@@ -8,7 +8,7 @@ mod state;
 
 use instructions::*;
 
-declare_id!("EZ5JUytewouCHUDxrvakcjUp5MDuuEMbLEpQHFabgewa");
+declare_id!("E1PSNCTQhcQYiHihtidJx6ArPrpAoCMM6378mJZquQED");
 
 #[program]
 mod launchpad {
