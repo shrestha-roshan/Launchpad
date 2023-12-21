@@ -31,10 +31,10 @@ pub struct InitAuction<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(
-        init,   
+        init_if_needed,   
         payer = owner,
         space = 8 + std::mem::size_of::<Auction>(),
-        seeds = [b"auction"],
+        seeds = [b"auction", owner.key().as_ref()],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,

@@ -26,4 +26,8 @@ mod launchpad {
     pub fn buy_token_using_usdt(ctx: Context<BuyTokensUsdt>, usdc_amount: u64) -> Result<()> {
         buy_token_using_usdt::handler(ctx, usdc_amount)
     }
+
+    pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
+        withdraw_funds::handler(ctx)
+    }
 }

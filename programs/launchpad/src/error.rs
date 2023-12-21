@@ -8,4 +8,10 @@ pub enum LaunchpadError {
     InvalidToken,
     #[msg("Insufficient Token")]
     InsufficientTokens,
+    #[msg("Unauthorized")]
+    Unauthorized,
+    #[msg("Auction Not Ended")]
+    AuctionNotEnded,
+    #[msg("Auction Disabled")]
+    AuctionDisabled,
 }
