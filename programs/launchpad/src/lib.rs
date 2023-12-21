@@ -19,8 +19,8 @@ mod launchpad {
         init_auction::handler(ctx, params)
     }
 
-    pub fn add_token(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
-        add_token::handler(ctx, params)
+    pub fn add_token(ctx: Context<AddToken>) -> Result<()> {
+        add_token::handler(ctx)
     }
 
     pub fn buy_token_using_spl(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {

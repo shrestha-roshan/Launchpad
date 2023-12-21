@@ -5,15 +5,12 @@ use anchor_spl::{
 };
 
 use crate::state::auction::Auction;
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct AddTokenParams {
-    pub token_amount: u64,
-}
 
-pub fn handler(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
+pub fn handler(ctx: Context<AddToken>) -> Result<()> {
     let owner = &ctx.accounts.owner;
     let from = &mut ctx.accounts.owner_auction_token_account;
     let to = &mut ctx.accounts.auction_vault_token_account;
+    let auction = &mut ctx.accounts.auction;
     let token_program = ctx.accounts.token_program.to_account_info();
 
     let transfer = Transfer {
@@ -23,7 +20,7 @@ pub fn handler(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new(token_program, transfer);
-    anchor_spl::token::transfer(ctx, params.token_amount)?;
+    anchor_spl::token::transfer(ctx, auction.token_cap)?;
     Ok(())
 }
 
