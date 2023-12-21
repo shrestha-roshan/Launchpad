@@ -13,7 +13,7 @@ pub struct BuyTokensUsdt<'info> {
     pub buyer: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [b"auction", auction.owner.key().as_ref()],
+        seeds = [b"auction", auction.name.as_bytes()],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,

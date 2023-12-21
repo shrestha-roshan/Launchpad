@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 #[derive(Default, Debug)]
 pub struct Auction {
     pub owner: Pubkey,
+    pub name: String,
     pub enabled: bool,
     pub fixed_amount: bool,
     pub unit_price: u64,

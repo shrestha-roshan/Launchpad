@@ -33,7 +33,7 @@ pub struct AddToken<'info> {
     pub auction_token: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [b"auction", auction.owner.key().as_ref()],
+        seeds = [b"auction", auction.name.as_bytes()],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,

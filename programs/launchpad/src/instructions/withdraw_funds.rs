@@ -31,11 +31,12 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
             CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer);
-        anchor_spl::token::transfer(ctx, auction.token_cap - auction.remaining_tokens)?;
+        anchor_spl::token::transfer(ctx, auction.remaining_tokens)?;
     }
 
     // Transfer USDC if tokens have been sold
     if auction.token_cap != auction.remaining_tokens {
+        let usdc_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let transfer = Transfer {
             from: ctx.accounts.auction_vault_usdc_account.to_account_info(),
             to: ctx.accounts.creator_usdc_account.to_account_info(),
@@ -43,7 +44,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
             CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer);
-        anchor_spl::token::transfer(ctx, auction.remaining_tokens)?;
+        anchor_spl::token::transfer(ctx, usdc_amount)?;
     }
 
     // Reset the auction state
@@ -65,7 +66,7 @@ pub struct WithdrawFunds<'info> {
     pub creator: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [b"auction", auction.owner.key().as_ref()],
+        seeds = [b"auction", auction.name.as_bytes()],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,

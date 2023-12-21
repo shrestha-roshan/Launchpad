@@ -4,6 +4,7 @@ use crate::state::auction::Auction;
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitAuctionParams {
+    pub name: String,
     pub enabled: bool,
     pub fixed_amount: bool,
     pub start_time: i64,
@@ -34,7 +35,7 @@ pub struct InitAuction<'info> {
         init_if_needed,   
         payer = owner,
         space = 8 + std::mem::size_of::<Auction>(),
-        seeds = [b"auction", owner.key().as_ref()],
+        seeds = [b"auction", params.name.as_bytes()],
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
