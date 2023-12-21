@@ -17,6 +17,7 @@ pub struct InitAuctionParams {
 pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     auction.owner = *ctx.accounts.owner.key;
+    auction.name = params.name;
     auction.enabled = params.enabled;
     auction.fixed_amount = params.fixed_amount;
     auction.unit_price = params.unit_price;
