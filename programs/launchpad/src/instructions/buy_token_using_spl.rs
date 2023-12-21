@@ -23,7 +23,11 @@ pub struct BuyTokensSpl<'info> {
         constraint = auction_vault_token_account.mint == mint.key()
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = auction_vault_spl_account.owner == auction.key(),
+        constraint = auction_vault_spl_account.mint == spl_mint.key()
+    )]
     pub auction_vault_spl_account: Box<Account<'info, TokenAccount>>,
     pub mint: Box<Account<'info, Mint>>,
     pub spl_mint: Box<Account<'info, Mint>>,
