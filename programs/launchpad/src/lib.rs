@@ -8,7 +8,7 @@ mod state;
 
 use instructions::*;
 
-declare_id!("DzdeoE6iqKdGvznDQB8xoT8d9wKriqF2zyuYrLVuWfG2");
+declare_id!("EZ5JUytewouCHUDxrvakcjUp5MDuuEMbLEpQHFabgewa");
 
 #[program]
 mod launchpad {
@@ -16,11 +16,11 @@ mod launchpad {
     use super::*;
 
     pub fn init_auction(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
-        init_auction::handler(ctx, &params)
+        init_auction::handler(ctx, params)
     }
 
     pub fn add_token(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
-        add_token::handler(ctx, &params)
+        add_token::handler(ctx, params)
     }
 
     pub fn buy_token_using_usdt(ctx: Context<BuyTokensUsdt>, usdc_amount: u64) -> Result<()> {

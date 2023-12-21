@@ -13,7 +13,7 @@ pub struct InitAuctionParams {
     pub token_cap: u64,
 }
 
-pub fn handler(ctx: Context<InitAuction>, params: &InitAuctionParams) -> Result<()> {
+pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     auction.owner = *ctx.accounts.owner.key;
     auction.enabled = params.enabled;

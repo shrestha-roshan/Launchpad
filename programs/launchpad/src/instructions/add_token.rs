@@ -10,7 +10,7 @@ pub struct AddTokenParams {
     pub token_amount: u64,
 }
 
-pub fn handler(ctx: Context<AddToken>, params: &AddTokenParams) -> Result<()> {
+pub fn handler(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
     let from = &mut ctx.accounts.owner;
     let to = &mut ctx.accounts.auction_vault_token_account;
     let token_program = ctx.accounts.token_program.to_account_info();
