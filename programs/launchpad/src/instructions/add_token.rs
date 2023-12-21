@@ -11,7 +11,7 @@ pub struct AddTokenParams {
 }
 
 pub fn handler(ctx: Context<AddToken>, params: AddTokenParams) -> Result<()> {
-    let from = &mut ctx.accounts.owner;
+    let from = &mut ctx.accounts.owner_auction_token_account;
     let to = &mut ctx.accounts.auction_vault_token_account;
     let token_program = ctx.accounts.token_program.to_account_info();
 
@@ -36,6 +36,12 @@ pub struct AddToken<'info> {
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        mut,
+        constraint = owner_auction_token_account.owner == owner.key(),
+        constraint = owner_auction_token_account.mint == auction_token.key()
+    )]
+    pub owner_auction_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         init_if_needed,
         payer = owner,
