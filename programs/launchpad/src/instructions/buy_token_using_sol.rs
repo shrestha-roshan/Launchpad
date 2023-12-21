@@ -20,10 +20,10 @@ pub struct BuyTokensSol<'info> {
     #[account(
         mut,
         constraint = auction_vault_token_account.owner == auction.key(),
-        constraint = auction_vault_token_account.mint == auction_mint.key()
+        constraint = auction_vault_token_account.mint == auction_token.key()
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
-    pub auction_mint: Box<Account<'info, Mint>>,
+    pub auction_token: Box<Account<'info, Mint>>,
     /// CHECK:
     pub token_program: AccountInfo<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,

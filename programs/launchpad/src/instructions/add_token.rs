@@ -39,11 +39,11 @@ pub struct AddToken<'info> {
     #[account(
         init_if_needed,
         payer = owner,
-        associated_token::mint = auction_token_mint,
+        associated_token::mint = auction_token,
         associated_token::authority = auction,
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
-    pub auction_token_mint: Account<'info, Mint>,
+    pub auction_token: Account<'info, Mint>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,

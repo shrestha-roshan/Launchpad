@@ -26,7 +26,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     if (auction.token_cap - auction.remaining_tokens) > 0 {
         let transfer = Transfer {
             from: ctx.accounts.auction_vault_token_account.to_account_info(),
-            to: ctx.accounts.creator.to_account_info(),
+            to: ctx.accounts.creator_auction_token_account.to_account_info(),
             authority: ctx.accounts.auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
@@ -38,8 +38,8 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     if auction.token_cap != auction.remaining_tokens && !auction.pay_with_native {
         let spl_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let transfer = Transfer {
-            from: ctx.accounts.auction_vault_spl_account.to_account_info(),
-            to: ctx.accounts.creator_spl_account.to_account_info(),
+            from: ctx.accounts.auction_vault_bid_account.to_account_info(),
+            to: ctx.accounts.creator_bid_token_account.to_account_info(),
             authority: ctx.accounts.auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
@@ -87,23 +87,29 @@ pub struct WithdrawFunds<'info> {
     #[account(
         mut,
         constraint = auction_vault_token_account.owner == auction.key(),
-        constraint = auction_vault_token_account.mint == auction_mint.key()
+        constraint = auction_vault_token_account.mint == auction_token.key()
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = auction_vault_spl_account.owner == auction.key(),
-        constraint = auction_vault_spl_account.mint == spl_mint.key()
+        constraint = auction_vault_bid_account.owner == auction.key(),
+        constraint = auction_vault_bid_account.mint == bid_token.key()
     )]
-    pub auction_vault_spl_account: Box<Account<'info, TokenAccount>>,
+    pub auction_vault_bid_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = creator_spl_account.owner == creator.key(),
-        constraint = creator_spl_account.mint == spl_mint.key()
+        constraint = creator_auction_token_account.owner == creator.key(),
+        constraint = creator_auction_token_account.mint == auction_token.key()
     )]
-    pub creator_spl_account: Box<Account<'info, TokenAccount>>,
-    pub auction_mint: Box<Account<'info, Mint>>,
-    pub spl_mint: Box<Account<'info, Mint>>,
+    pub creator_auction_token_account: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = creator_bid_token_account.owner == creator.key(),
+        constraint = creator_bid_token_account.mint == bid_token.key()
+    )]
+    pub creator_bid_token_account: Box<Account<'info, TokenAccount>>,
+    pub auction_token: Box<Account<'info, Mint>>,
+    pub bid_token: Box<Account<'info, Mint>>,
     /// CHECK:
     pub token_program: AccountInfo<'info>,
     pub clock: Sysvar<'info, Clock>,
