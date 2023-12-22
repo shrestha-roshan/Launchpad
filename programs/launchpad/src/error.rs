@@ -18,4 +18,12 @@ pub enum LaunchpadError {
     NonNativeAuction,
     #[msg("Non SPL Auction")]
     NonSplAuction,
+    #[msg("Not Whitelisted")]
+    NotWhitelisted,
+    #[msg("Exceeds Buying Limit")]
+    ExceedsLimit,
+    #[msg("Pre Sale Not Enabled")]
+    PreSaleNotEnabled,
+    #[msg("Invalid Pre Sale Time ")]
+    InvalidPresaleTime,
 }

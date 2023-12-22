@@ -35,4 +35,12 @@ mod launchpad {
     pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
         withdraw_funds::handler(ctx)
     }
+
+    pub fn whitelist(ctx: Context<WhitelistUser>, params: WhitelistParams) -> Result<()> {
+        whitelist::handler(ctx, params)
+    }
+
+    pub fn pre_sale_buy(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
+        pre_sale_buy::handler(ctx, spl_amount)
+    }
 }

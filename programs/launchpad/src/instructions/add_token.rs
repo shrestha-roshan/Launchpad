@@ -4,7 +4,7 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount, Transfer},
 };
 
-use crate::state::auction::Auction;
+use crate::{error::LaunchpadError, state::auction::Auction};
 
 pub fn handler(ctx: Context<AddToken>) -> Result<()> {
     let owner = &ctx.accounts.owner;
@@ -12,6 +12,11 @@ pub fn handler(ctx: Context<AddToken>) -> Result<()> {
     let to = &mut ctx.accounts.auction_vault_token_account;
     let auction = &mut ctx.accounts.auction;
     let token_program = ctx.accounts.token_program.to_account_info();
+
+    //Ensure that the auction is not enabled
+    if auction.enabled {
+        return Err(LaunchpadError::InvalidAuction.into());
+    }
 
     let transfer = Transfer {
         from: from.to_account_info(),
