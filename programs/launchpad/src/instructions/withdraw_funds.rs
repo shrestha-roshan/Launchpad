@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
-
 use crate::{error::LaunchpadError, state::Auction};
-use anchor_spl::token::{Mint, TokenAccount, Transfer};
+use anchor_spl::token::{Mint, TokenAccount, Transfer as Transfer_Spl, transfer as transfer_spl};
+use anchor_lang::system_program::{Transfer as Tranfer_Sol, transfer as transfer_sol};
+
 
 pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     let auction = &mut ctx.accounts.auction.clone();
@@ -22,42 +23,67 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         return Err(LaunchpadError::AuctionDisabled.into());
     }
 
+    // Generate auction seed
+    let (_, bump_seed)=Pubkey::find_program_address(
+        &[
+            "auction".as_bytes(),
+            auction.name.as_bytes()
+        ],
+        ctx.program_id,
+    );
+    let auction_seed: &[&[&[_]]] = &[&[
+        "auction".as_bytes(),
+        auction.name.as_bytes(),
+        &[bump_seed],
+    ]];
+
     // Transfer if there are any remaining tokens
     if (auction.token_cap - auction.remaining_tokens) > 0 {
-        let transfer = Transfer {
+        let trans_spl = Transfer_Spl {
             from: ctx.accounts.auction_vault_token_account.to_account_info(),
             to: ctx.accounts.creator_auction_token_account.to_account_info(),
             authority: ctx.accounts.auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
-            CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer);
-        anchor_spl::token::transfer(ctx, auction.remaining_tokens)?;
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                trans_spl,
+                auction_seed
+            );
+        transfer_spl(ctx, auction.remaining_tokens)?;
     }
 
     // Transfer spl if tokens have been sold
     if auction.token_cap != auction.remaining_tokens && !auction.pay_with_native {
         let spl_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
-        let transfer = Transfer {
-            from: ctx.accounts.auction_vault_bid_account.to_account_info(),
+        let trans_spl = Transfer_Spl {
+            from: ctx.accounts.auction_vault_bid_token_account.to_account_info(),
             to: ctx.accounts.creator_bid_token_account.to_account_info(),
             authority: ctx.accounts.auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
-            CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer);
-        anchor_spl::token::transfer(ctx, spl_amount)?;
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(), 
+                trans_spl,
+                auction_seed
+            );
+        transfer_spl(ctx, spl_amount)?;
     }
 
     //Transfer sol if tokens have been sold
     if auction.token_cap != auction.remaining_tokens && auction.pay_with_native {
         let sol_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
-        let transfer_sol = Transfer {
+        let trans_sol = Tranfer_Sol {
             from: ctx.accounts.auction.to_account_info(),
             to: ctx.accounts.creator.to_account_info(),
-            authority: ctx.accounts.auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> =
-            CpiContext::new(ctx.accounts.token_program.to_account_info(), transfer_sol);
-        anchor_spl::token::transfer(ctx, sol_amount)?;
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(), 
+                trans_sol,
+                auction_seed,
+            );
+        transfer_sol(ctx, sol_amount)?;
     }
 
     // Reset the auction state
@@ -92,10 +118,10 @@ pub struct WithdrawFunds<'info> {
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = auction_vault_bid_account.owner == auction.key(),
-        constraint = auction_vault_bid_account.mint == bid_token.key()
+        constraint = auction_vault_bid_token_account.owner == auction.key(),
+        constraint = auction_vault_bid_token_account.mint == bid_token.key()
     )]
-    pub auction_vault_bid_account: Box<Account<'info, TokenAccount>>,
+    pub auction_vault_bid_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = creator_auction_token_account.owner == creator.key(),
