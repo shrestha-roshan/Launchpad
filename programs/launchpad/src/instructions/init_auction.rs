@@ -17,6 +17,23 @@ pub struct InitAuctionParams {
     pub pre_sale_end_time: i64,
 }
 
+#[derive(Accounts)]
+#[instruction(params: InitAuctionParams)]
+pub struct InitAuction<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(
+        init_if_needed,   
+        payer = owner,
+        space = 8 + std::mem::size_of::<Auction>(),
+        seeds = [b"auction", params.name.as_bytes()],
+        bump
+    )]
+    pub auction: Box<Account<'info, Auction>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
 pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     auction.owner = *ctx.accounts.owner.key;
@@ -33,21 +50,4 @@ pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<(
     auction.pre_sale_start_time = params.pre_sale_start_time;
     auction.pre_sale_end_time = params.pre_sale_end_time;
     Ok(())
-}
-
-#[derive(Accounts)]
-#[instruction(params: InitAuctionParams)]
-pub struct InitAuction<'info> {
-    #[account(mut)]
-    pub owner: Signer<'info>,
-    #[account(
-        init_if_needed,   
-        payer = owner,
-        space = 8 + std::mem::size_of::<Auction>(),
-        seeds = [b"auction", params.name.as_bytes()],
-        bump
-    )]
-    pub auction: Box<Account<'info, Auction>>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
 }

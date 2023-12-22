@@ -6,29 +6,6 @@ use anchor_spl::{
 
 use crate::{error::LaunchpadError, state::auction::Auction};
 
-pub fn handler(ctx: Context<AddToken>) -> Result<()> {
-    let owner = &ctx.accounts.owner;
-    let from = &mut ctx.accounts.owner_auction_token_account;
-    let to = &mut ctx.accounts.auction_vault_token_account;
-    let auction = &mut ctx.accounts.auction;
-    let token_program = ctx.accounts.token_program.to_account_info();
-
-    //Ensure that the auction is not enabled
-    if auction.enabled {
-        return Err(LaunchpadError::InvalidAuction.into());
-    }
-
-    let transfer = Transfer {
-        from: from.to_account_info(),
-        to: to.to_account_info(),
-        authority: owner.to_account_info(),
-    };
-
-    let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new(token_program, transfer);
-    anchor_spl::token::transfer(ctx, auction.token_cap)?;
-    Ok(())
-}
-
 #[derive(Accounts)]
 pub struct AddToken<'info> {
     #[account(mut)]
@@ -57,4 +34,27 @@ pub struct AddToken<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
+}
+
+pub fn handler(ctx: Context<AddToken>) -> Result<()> {
+    let owner = &ctx.accounts.owner;
+    let from = &mut ctx.accounts.owner_auction_token_account;
+    let to = &mut ctx.accounts.auction_vault_token_account;
+    let auction = &mut ctx.accounts.auction;
+    let token_program = ctx.accounts.token_program.to_account_info();
+
+    //Ensure that the auction is not enabled
+    if auction.enabled {
+        return Err(LaunchpadError::InvalidAuction.into());
+    }
+
+    let transfer = Transfer {
+        from: from.to_account_info(),
+        to: to.to_account_info(),
+        authority: owner.to_account_info(),
+    };
+
+    let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new(token_program, transfer);
+    anchor_spl::token::transfer(ctx, auction.token_cap)?;
+    Ok(())
 }
