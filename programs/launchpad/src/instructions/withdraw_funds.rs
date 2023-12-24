@@ -131,5 +131,8 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     auction.token_cap = 0;
     auction.remaining_tokens = 0;
     auction.pay_with_native = false;
+    auction.pre_sale = false;
+    auction.pre_sale_start_time = 0;
+    auction.pre_sale_end_time = 0;
     Ok(())
 }

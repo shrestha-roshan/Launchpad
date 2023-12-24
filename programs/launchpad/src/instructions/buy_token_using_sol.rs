@@ -52,6 +52,11 @@ pub fn _handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     // amount of token to send to buyer
     let token_amount_to_buy = sol_amount * auction.unit_price;
 
+    // Ensure if the pre sale has been ended
+    if auction.pre_sale && ctx.accounts.clock.unix_timestamp < auction.pre_sale_end_time {
+        return Err(LaunchpadError::PreSaleNotEnded.into());
+    }
+
     // Ensure that the auction is initialized and live
     if !auction.enabled
         || ctx.accounts.clock.unix_timestamp > auction.start_time

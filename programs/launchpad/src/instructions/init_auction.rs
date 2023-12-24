@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::lamports::LamportsError};
 
-use crate::state::auction::Auction;
+use crate::{state::auction::Auction, error::LaunchpadError};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitAuctionParams {
@@ -36,6 +36,12 @@ pub struct InitAuction<'info> {
 
 pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
+
+    // Validate parameters
+    if params.start_time >= params.end_time {
+        return Err(LaunchpadError::InvalidAuctionTimes.into());
+    }
+
     auction.owner = *ctx.accounts.owner.key;
     auction.name = params.name;
     auction.enabled = params.enabled;

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::state::{whitelist::Whitelist, Auction};
+use crate::{state::{whitelist::Whitelist, Auction}, error::LaunchpadError};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct WhitelistParams {
@@ -11,10 +11,10 @@ pub struct WhitelistParams {
 #[derive(Accounts)]
 pub struct WhitelistUser<'info> {
     #[account(mut)]
-    pub owner: Signer<'info>,
+    pub creator: Signer<'info>,
     #[account(
         init_if_needed,   
-        payer = owner,
+        payer = creator,
         space = 8 + std::mem::size_of::<Whitelist>(),
         seeds = [b"whitelist", whitelist_user.key().as_ref(), auction.key().as_ref()],
         bump
@@ -32,6 +32,10 @@ pub struct WhitelistUser<'info> {
 }
 
 pub fn handler(ctx: Context<WhitelistUser>, params: WhitelistParams) -> Result<()> {
+    // Ensure that the creator is the owner of the auction
+    if ctx.accounts.creator.key != &ctx.accounts.auction.owner {
+        return Err(LaunchpadError::InvalidAuction.into());
+    }
     let whitelist = &mut ctx.accounts.whitelist_pda;
     whitelist.whitelisted = params.whitelisted;
     whitelist.limit = params.limit;

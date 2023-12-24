@@ -68,6 +68,11 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     let token_program = ctx.accounts.token_program.as_ref();
     let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
 
+    // Check if token amount to buy is greater than 0
+    if spl_amount == 0 {
+        return Err(LaunchpadError::InvalidTokenAmount.into());
+    }
+
     // Ensure if the auction presale is enabled
     if !auction.pre_sale {
         return Err(LaunchpadError::PreSaleNotEnabled.into());
@@ -86,7 +91,7 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
 
     // amount of token to send to buyer
     let auction_token_amount_to_buy = spl_amount * auction.unit_price;
-    
+
     // Ensure if the buyer is within the limit
     if auction_token_amount_to_buy > whitelist.limit {
         return Err(LaunchpadError::ExceedsLimit.into());

@@ -66,12 +66,22 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     // amount of token to send to buyer
     let token_amount_to_buy = spl_amount * auction.unit_price;
 
+    // Check if token amount to buy is greater than 0
+    if spl_amount == 0 {
+        return Err(LaunchpadError::InvalidTokenAmount.into());
+    }
+
     // Ensure that the auction is initialized and live
     if !(auction.enabled
         && (ctx.accounts.clock.unix_timestamp > auction.start_time
             && ctx.accounts.clock.unix_timestamp < auction.end_time))
     {
         return Err(LaunchpadError::InvalidAuction.into());
+    }
+
+    // Ensure if the pre sale has been ended
+    if auction.pre_sale && ctx.accounts.clock.unix_timestamp < auction.pre_sale_end_time {
+        return Err(LaunchpadError::PreSaleNotEnded.into());
     }
 
     // Ensure there are enough tokens remaining for the buyer
