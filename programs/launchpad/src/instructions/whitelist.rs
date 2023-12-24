@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-
 use crate::{state::{whitelist::Whitelist, Auction}, error::LaunchpadError};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -26,6 +25,7 @@ pub struct WhitelistUser<'info> {
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
+    /// CHECK:
     pub whitelist_user: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,

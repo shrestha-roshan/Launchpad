@@ -1,16 +1,14 @@
 use anchor_lang::prelude::*;
-
 use crate::{error::LaunchpadError, state::Auction};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, TokenAccount, Transfer},
+    token::{Mint, TokenAccount, Transfer, Token},
 };
 
 #[derive(Accounts)]
 pub struct BuyTokensSpl<'info> {
-    #[account(signer)]
-    /// CHECK:
-    pub buyer: AccountInfo<'info>,
+    #[account(mut)]
+    pub buyer: Signer<'info>,
     #[account(
         mut,
         constraint = buyer_bid_token_account.owner == buyer.key(),
@@ -43,8 +41,7 @@ pub struct BuyTokensSpl<'info> {
     pub auction_vault_bid_token_account: Box<Account<'info, TokenAccount>>,
     pub auction_token: Box<Account<'info, Mint>>,
     pub bid_token: Box<Account<'info, Mint>>,
-    /// CHECK:
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub clock: Sysvar<'info, Clock>,
 }
@@ -112,7 +109,7 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     let transfer_spl = Transfer {
         from: buyer_spl_account.to_account_info(),
         to: auction_vault_spl_account.to_account_info(),
-        authority: buyer,
+        authority: buyer.to_account_info(),
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> =
