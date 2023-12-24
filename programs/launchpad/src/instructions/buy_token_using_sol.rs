@@ -58,9 +58,9 @@ pub fn _handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     }
 
     // Ensure that the auction is initialized and live
-    if !auction.enabled
-        || ctx.accounts.clock.unix_timestamp > auction.start_time
-        || ctx.accounts.clock.unix_timestamp < auction.end_time
+    if !(auction.enabled
+        && (ctx.accounts.clock.unix_timestamp > auction.start_time
+            && ctx.accounts.clock.unix_timestamp < auction.end_time))
     {
         return Err(LaunchpadError::InvalidAuction.into());
     }
