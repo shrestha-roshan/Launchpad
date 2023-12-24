@@ -1,9 +1,9 @@
+use crate::{error::LaunchpadError, state::auction::Auction};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount, Transfer},
 };
-use crate::{error::LaunchpadError, state::auction::Auction};
 
 #[derive(Accounts)]
 pub struct AddToken<'info> {
@@ -17,6 +17,13 @@ pub struct AddToken<'info> {
     pub auction: Box<Account<'info, Auction>>,
     #[account(
         mut,
+        seeds = [b"auction_vault", auction.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: seeds has been checked
+    pub auction_vault: AccountInfo<'info>,
+    #[account(
+        mut,
         constraint = owner_auction_token_account.owner == owner.key(),
         constraint = owner_auction_token_account.mint == auction_token.key()
     )]
@@ -25,7 +32,7 @@ pub struct AddToken<'info> {
         init_if_needed,
         payer = owner,
         associated_token::mint = auction_token,
-        associated_token::authority = auction,
+        associated_token::authority = auction_vault,
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     pub auction_token: Account<'info, Mint>,

@@ -29,6 +29,15 @@ pub struct InitAuction<'info> {
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = 8,
+        seeds = [b"auction_vault", auction.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: seeds has been checked
+    pub auction_vault: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }

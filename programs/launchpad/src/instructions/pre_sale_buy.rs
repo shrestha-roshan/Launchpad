@@ -1,11 +1,11 @@
-use anchor_lang::prelude::*;
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{Mint, TokenAccount, Transfer, Token},
-};
 use crate::{
     error::LaunchpadError,
     state::{Auction, Whitelist},
+};
+use anchor_lang::prelude::*;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{Mint, Token, TokenAccount, Transfer},
 };
 
 #[derive(Accounts)]
@@ -30,6 +30,13 @@ pub struct PreSaleBuy<'info> {
         bump
     )]
     pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        mut,
+        seeds = [b"auction_vault", auction.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: seeds has been checked
+    pub auction_vault: AccountInfo<'info>,
     #[account(
         mut,
         constraint = auction_vault_token_account.owner == auction.key(),
@@ -58,6 +65,7 @@ pub struct PreSaleBuy<'info> {
 pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     let whitelist = &mut ctx.accounts.whitelist_pda;
     let auction = &mut ctx.accounts.auction;
+    let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
     let buyer = ctx.accounts.buyer.clone();
     let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
     let auction_vault_spl_account = ctx.accounts.auction_vault_bid_token_account.clone();
@@ -100,9 +108,7 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     }
 
     // Ensure that the auction is initialized and live
-    if !(auction.enabled
-        && (current_ts > auction.start_time && current_ts < auction.end_time))
-    {
+    if !(auction.enabled && (current_ts > auction.start_time && current_ts < auction.end_time)) {
         return Err(LaunchpadError::InvalidAuction.into());
     }
 
@@ -112,18 +118,23 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     }
 
     // Generate auction seed
+    let auction_key = auction.key();
+
     let (_, bump_seed) = Pubkey::find_program_address(
-        &["auction".as_bytes(), auction.name.as_bytes()],
+        &["auction_vault".as_bytes(), auction_key.as_ref()],
         ctx.program_id,
     );
-    let auction_seed: &[&[&[_]]] =
-        &[&["auction".as_bytes(), auction.name.as_bytes(), &[bump_seed]]];
+    let auction_seed: &[&[&[_]]] = &[&[
+        "auction_vault".as_bytes(),
+        auction_key.as_ref(),
+        &[bump_seed],
+    ]];
 
     // Perform the token transfer to the buyer
     let transfer = Transfer {
         from: auction_vault_token_account.to_account_info(),
         to: buyer_auction_token_account.to_account_info(),
-        authority: auction.to_account_info(),
+        authority: auction_vault.to_account_info(),
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> =

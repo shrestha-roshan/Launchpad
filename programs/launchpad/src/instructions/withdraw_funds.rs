@@ -1,7 +1,9 @@
+use crate::{error::LaunchpadError, state::Auction};
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Tranfer_Sol};
-use anchor_spl::token::{transfer as transfer_spl, Mint, TokenAccount, Transfer as Transfer_Spl, Token};
-use crate::{error::LaunchpadError, state::Auction};
+use anchor_spl::token::{
+    transfer as transfer_spl, Mint, Token, TokenAccount, Transfer as Transfer_Spl,
+};
 
 #[derive(Accounts)]
 pub struct WithdrawFunds<'info> {
@@ -15,13 +17,20 @@ pub struct WithdrawFunds<'info> {
     pub auction: Box<Account<'info, Auction>>,
     #[account(
         mut,
-        constraint = auction_vault_token_account.owner == auction.key(),
+        seeds = [b"auction_vault", auction.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: seeds has been checked
+    pub auction_vault: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = auction_vault_token_account.owner == auction_vault.key(),
         constraint = auction_vault_token_account.mint == auction_token.key()
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = auction_vault_bid_token_account.owner == auction.key(),
+        constraint = auction_vault_bid_token_account.owner == auction_vault.key(),
         constraint = auction_vault_bid_token_account.mint == bid_token.key()
     )]
     pub auction_vault_bid_token_account: Box<Account<'info, TokenAccount>>,
@@ -46,6 +55,7 @@ pub struct WithdrawFunds<'info> {
 
 pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     let auction = &mut ctx.accounts.auction.clone();
+    let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
     let creator = ctx.accounts.creator.clone();
 
     // Ensure that the withdrawal is done by the auction creator
@@ -64,19 +74,25 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     }
 
     // Generate auction seed
+    let auction_key = auction.key();
+
     let (_, bump_seed) = Pubkey::find_program_address(
-        &["auction".as_bytes(), auction.name.as_bytes()],
+        &["auction_vault".as_bytes(), auction_key.as_ref()],
         ctx.program_id,
     );
-    let auction_seed: &[&[&[_]]] =
-        &[&["auction".as_bytes(), auction.name.as_bytes(), &[bump_seed]]];
+
+    let auction_seed: &[&[&[_]]] = &[&[
+        "auction_vault".as_bytes(),
+        auction_key.as_ref(),
+        &[bump_seed],
+    ]];
 
     // Transfer if there are any remaining tokens
     if (auction.token_cap - auction.remaining_tokens) > 0 {
         let trans_spl = Transfer_Spl {
             from: ctx.accounts.auction_vault_token_account.to_account_info(),
             to: ctx.accounts.creator_auction_token_account.to_account_info(),
-            authority: auction.to_account_info(),
+            authority: auction_vault.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -90,9 +106,12 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     if auction.token_cap != auction.remaining_tokens && !auction.pay_with_native {
         let spl_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let trans_spl = Transfer_Spl {
-            from: ctx.accounts.auction_vault_bid_token_account.to_account_info(),
+            from: ctx
+                .accounts
+                .auction_vault_bid_token_account
+                .to_account_info(),
             to: ctx.accounts.creator_bid_token_account.to_account_info(),
-            authority: auction.to_account_info(),
+            authority: auction_vault.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -106,7 +125,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     if auction.token_cap != auction.remaining_tokens && auction.pay_with_native {
         let sol_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let trans_sol = Tranfer_Sol {
-            from: auction.to_account_info(),
+            from: auction_vault.to_account_info(),
             to: ctx.accounts.creator.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
