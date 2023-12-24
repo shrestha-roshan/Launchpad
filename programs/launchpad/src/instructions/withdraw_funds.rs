@@ -1,13 +1,12 @@
-use crate::{error::LaunchpadError, state::Auction};
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Tranfer_Sol};
-use anchor_spl::token::{transfer as transfer_spl, Mint, TokenAccount, Transfer as Transfer_Spl};
+use anchor_spl::token::{transfer as transfer_spl, Mint, TokenAccount, Transfer as Transfer_Spl, Token};
+use crate::{error::LaunchpadError, state::Auction};
 
 #[derive(Accounts)]
 pub struct WithdrawFunds<'info> {
-    #[account(signer)]
-    /// CHECK:
-    pub creator: AccountInfo<'info>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
     #[account(
         mut,
         seeds = [b"auction", auction.name.as_bytes()],
@@ -40,9 +39,9 @@ pub struct WithdrawFunds<'info> {
     pub creator_bid_token_account: Box<Account<'info, TokenAccount>>,
     pub auction_token: Box<Account<'info, Mint>>,
     pub bid_token: Box<Account<'info, Mint>>,
-    /// CHECK:
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
     pub clock: Sysvar<'info, Clock>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
@@ -77,7 +76,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         let trans_spl = Transfer_Spl {
             from: ctx.accounts.auction_vault_token_account.to_account_info(),
             to: ctx.accounts.creator_auction_token_account.to_account_info(),
-            authority: ctx.accounts.auction.to_account_info(),
+            authority: auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -91,12 +90,9 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     if auction.token_cap != auction.remaining_tokens && !auction.pay_with_native {
         let spl_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let trans_spl = Transfer_Spl {
-            from: ctx
-                .accounts
-                .auction_vault_bid_token_account
-                .to_account_info(),
+            from: ctx.accounts.auction_vault_bid_token_account.to_account_info(),
             to: ctx.accounts.creator_bid_token_account.to_account_info(),
-            authority: ctx.accounts.auction.to_account_info(),
+            authority: auction.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -110,11 +106,11 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     if auction.token_cap != auction.remaining_tokens && auction.pay_with_native {
         let sol_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
         let trans_sol = Tranfer_Sol {
-            from: ctx.accounts.auction.to_account_info(),
+            from: auction.to_account_info(),
             to: ctx.accounts.creator.to_account_info(),
         };
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
             trans_sol,
             auction_seed,
         );

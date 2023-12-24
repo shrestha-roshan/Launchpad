@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-
 use crate::{state::auction::Auction, error::LaunchpadError};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]

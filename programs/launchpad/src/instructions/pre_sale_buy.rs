@@ -1,9 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, TokenAccount, Transfer},
+    token::{Mint, TokenAccount, Transfer, Token},
 };
-
 use crate::{
     error::LaunchpadError,
     state::{Auction, Whitelist},
@@ -11,13 +10,12 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct PreSaleBuy<'info> {
-    #[account(signer)]
-    /// CHECK:
-    pub buyer: AccountInfo<'info>,
+    #[account(mut)]
+    pub buyer: Signer<'info>,
     #[account(
         mut,
         constraint = buyer_bid_token_account.owner == buyer.key(),
-        constraint = buyer_bid_token_account.mint == buyer_token.key()
+        constraint = buyer_bid_token_account.mint == bid_token.key()
     )]
     pub buyer_bid_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
@@ -41,19 +39,18 @@ pub struct PreSaleBuy<'info> {
     #[account(
         mut,
         constraint = auction_vault_bid_token_account.owner == auction.key(),
-        constraint = auction_vault_bid_token_account.mint == buyer_token.key()
+        constraint = auction_vault_bid_token_account.mint == bid_token.key()
     )]
     pub auction_vault_bid_token_account: Box<Account<'info, TokenAccount>>,
     pub auction_token: Box<Account<'info, Mint>>,
-    pub buyer_token: Box<Account<'info, Mint>>,
+    pub bid_token: Box<Account<'info, Mint>>,
     #[account(
         mut,
         seeds = [b"whitelist", buyer.key().as_ref(), auction.key().as_ref()],
         bump
     )]
     pub whitelist_pda: Box<Account<'info, Whitelist>>,
-    /// CHECK:
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub clock: Sysvar<'info, Clock>,
 }
@@ -104,8 +101,7 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
 
     // Ensure that the auction is initialized and live
     if !(auction.enabled
-        && (ctx.accounts.clock.unix_timestamp > auction.start_time
-            && ctx.accounts.clock.unix_timestamp < auction.end_time))
+        && (current_ts > auction.start_time && current_ts < auction.end_time))
     {
         return Err(LaunchpadError::InvalidAuction.into());
     }
@@ -138,7 +134,7 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     let transfer_spl = Transfer {
         from: buyer_spl_account.to_account_info(),
         to: auction_vault_spl_account.to_account_info(),
-        authority: buyer,
+        authority: buyer.to_account_info(),
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> =

@@ -3,7 +3,6 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount, Transfer},
 };
-
 use crate::{error::LaunchpadError, state::auction::Auction};
 
 #[derive(Accounts)]
@@ -34,6 +33,7 @@ pub struct AddToken<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
+    pub clock: Sysvar<'info, Clock>,
 }
 
 pub fn handler(ctx: Context<AddToken>) -> Result<()> {
@@ -43,8 +43,8 @@ pub fn handler(ctx: Context<AddToken>) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     let token_program = ctx.accounts.token_program.to_account_info();
 
-    //Ensure that the auction is not enabled
-    if auction.enabled {
+    // Ensure that the auction is enabled but not live yet
+    if !(auction.enabled && (ctx.accounts.clock.unix_timestamp < auction.start_time)) {
         return Err(LaunchpadError::InvalidAuction.into());
     }
 

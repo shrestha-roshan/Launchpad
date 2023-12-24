@@ -19,3 +19,4 @@ wallet = "/home/nick619/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/launchpad.ts"
+edge_cases = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/launchpad_edge_cases.ts"
