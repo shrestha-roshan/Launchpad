@@ -50,23 +50,11 @@ describe("anchor-latest", async () => {
     );
   console.log("sender_auctiontoken_ata", sender_auctiontoken_ata.toString())
 
-  // Check whether sender_auctiontoken_ata exists or not
-  if (!con.getAccountInfo(sender_auctiontoken_ata)) {
-    console.log("Token Acc doesn't exist!! Creating one...")
-    createATA(sender, sender_auctiontoken_ata, sender.publicKey, auction_token)
-  }
-
   const sender_bidtoken_ata = await getAssociatedTokenAddress(
     bid_token,
     sender.publicKey,
   );
   console.log("sender_bidtoken_ata", sender_bidtoken_ata.toString())
-
-  // Check whether sender_bidtoken_ata exists or not
-  if (!con.getAccountInfo(sender_bidtoken_ata)) {
-    console.log("Token Acc doesn't exist!! Creating one...")
-    createATA(sender, sender_bidtoken_ata, sender.publicKey, bid_token)
-  }
 
   const buyer = Keypair.fromSecretKey(
     Buffer.from(JSON.parse(fs.readFileSync("./test_wallets/buyer_wallet.json", "utf-8")))
@@ -82,12 +70,6 @@ describe("anchor-latest", async () => {
   );
   console.log("buyer_auctiontoken_ata", buyer_auctiontoken_ata.toString());
 
-  // Check whether buyer_auctiontoken_ata exists or not
-  if (!con.getAccountInfo(buyer_auctiontoken_ata)) {
-    console.log("Token Acc doesn't exist!! Creating one...")
-    createATA(buyer, buyer_auctiontoken_ata, buyer.publicKey, auction_token)
-  }
-
   const auction_pda_name = "lampbit-auction-test";
   const [auction, _] = PublicKey.findProgramAddressSync(
     [
@@ -98,21 +80,30 @@ describe("anchor-latest", async () => {
   );
   console.log("auction:", auction.toString());
 
+  const [auction_vault, __] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(anchor.utils.bytes.utf8.encode("auction_vault")),
+      auction.toBuffer()
+    ],
+    program.programId
+  )
+  console.log("auction_vault:", auction_vault.toString());
+
   const auction_vault_ata = await getAssociatedTokenAddress(
     auction_token,
-    auction,
+    auction_vault,
     true
   );
   console.log("auction_vault_ata", auction_vault_ata.toString())
 
-  const auction_bidtoken_ata = await getAssociatedTokenAddress(
+  const auction_vault_bidtoken_ata = await getAssociatedTokenAddress(
     bid_token,
-    auction,
+    auction_vault,
     true
   );
-  console.log("auction_bidtoken_ata", auction_bidtoken_ata.toString())
+  console.log("auction_vault_bidtoken_ata", auction_vault_bidtoken_ata.toString())
 
-  const [whitelist_pda, __] = PublicKey.findProgramAddressSync(
+  const [whitelist_pda, ___] = PublicKey.findProgramAddressSync(
     [
       Buffer.from(anchor.utils.bytes.utf8.encode("whitelist")),
       buyer.publicKey.toBuffer(),
@@ -121,6 +112,51 @@ describe("anchor-latest", async () => {
     program.programId
   );
   console.log("whitelist_pda:", whitelist_pda.toString());
+  // assert(false)
+
+  describe("ATA SanityCheck!", async () => {
+    it("Check whether all required ATAs exists or not!", async () => {
+      if (! await con.getAccountInfo(sender_auctiontoken_ata)) {
+        console.log("Token Acc doesn't exist!! Creating one...")
+        createATA(sender, sender_auctiontoken_ata, sender.publicKey, auction_token)
+        console.log(sender_auctiontoken_ata.toString(), "created!")
+      } else {
+        console.log(sender_auctiontoken_ata.toString(), "exists!")
+      }
+
+      if (! await con.getAccountInfo(sender_bidtoken_ata)) {
+        console.log("Token Acc doesn't exist!! Creating one...")
+        createATA(sender, sender_bidtoken_ata, sender.publicKey, bid_token)
+        console.log(sender_bidtoken_ata.toString(), "created!")
+      } else {
+        console.log(sender_bidtoken_ata.toString(), "exists!")
+      }
+
+      if (! await con.getAccountInfo(buyer_auctiontoken_ata)) {
+        console.log("Token Acc doesn't exist!! Creating one...")
+        createATA(buyer, buyer_auctiontoken_ata, buyer.publicKey, auction_token)
+        console.log(buyer_auctiontoken_ata.toString(), "created!")
+      } else {
+        console.log(buyer_auctiontoken_ata.toString(), "exists!")
+      }
+
+      if (! await con.getAccountInfo(auction_vault_ata)) {
+        console.log("Token Acc doesn't exist!! Creating one...")
+        createATA(sender, auction_vault_ata, auction_vault, auction_token)
+        console.log(auction_vault_ata.toString(), "created!")
+      } else {
+        console.log(auction_vault_ata.toString(), "exists!")
+      }
+
+      if (! await con.getAccountInfo(auction_vault_bidtoken_ata)) {
+        console.log("Token Acc doesn't exist!! Creating one...")
+        createATA(sender, auction_vault_bidtoken_ata, auction_vault, bid_token)
+        console.log(auction_vault_bidtoken_ata.toString(), "created!")
+      } else {
+        console.log(auction_vault_bidtoken_ata.toString(), "exists!")
+      }
+    })
+  });
 
   describe("Case 1: Init Auction, Add Token, Whitelist, Pre-Sale Buy!", async () => {
     it("Init Auction!", async () => {
@@ -148,6 +184,7 @@ describe("anchor-latest", async () => {
           .accounts({
             owner: sender.publicKey,
             auction: auction,
+            auctionVault: auction_vault,
             rent: SYSVAR_RENT_PUBKEY,
             systemProgram: SystemProgram.programId,
           })
@@ -161,6 +198,7 @@ describe("anchor-latest", async () => {
         .accounts({
         owner: sender.publicKey,
         auction: auction,
+        auctionVault: auction_vault,
         ownerAuctionTokenAccount: sender_auctiontoken_ata,
         auctionVaultTokenAccount: auction_vault_ata,
         auctionToken: auction_token,
@@ -208,8 +246,9 @@ describe("anchor-latest", async () => {
             buyerBidTokenAccount: buyer_bidtoken_ata,
             buyerAuctionTokenAccount: buyer_auctiontoken_ata,
             auction: auction,
+            auctionVault: auction_vault,
             auctionVaultTokenAccount: auction_vault_ata,
-            auctionVaultBidTokenAccount: auction_bidtoken_ata,
+            auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
             auctionToken: auction_token,
             bidToken: bid_token,
             whitelistPda: whitelist_pda,
@@ -221,7 +260,7 @@ describe("anchor-latest", async () => {
         console.log("presale_buy_tx", presale_buy_tx);
     });
   });
-//   assert(false)
+  // assert(false)
   describe("Case 2: Init Auction(paywithSpl), Add Token, Buy Token using SPL, Withdraw Funds!", async () => {
     it("Init Auction!", async () => {
         // get the timestamp when auction goes LIVE
@@ -248,6 +287,7 @@ describe("anchor-latest", async () => {
           .accounts({
             owner: sender.publicKey,
             auction: auction,
+            auctionVault: auction_vault,
             rent: SYSVAR_RENT_PUBKEY,
             systemProgram: SystemProgram.programId,
           })
@@ -261,6 +301,7 @@ describe("anchor-latest", async () => {
         .accounts({
         owner: sender.publicKey,
         auction: auction,
+        auctionVault: auction_vault,
         ownerAuctionTokenAccount: sender_auctiontoken_ata,
         auctionVaultTokenAccount: auction_vault_ata,
         auctionToken: auction_token,
@@ -286,8 +327,9 @@ describe("anchor-latest", async () => {
             buyerBidTokenAccount: buyer_bidtoken_ata,
             buyerAuctionTokenAccount: buyer_auctiontoken_ata,
             auction: auction,
+            auctionVault: auction_vault,
             auctionVaultTokenAccount: auction_vault_ata,
-            auctionVaultBidTokenAccount: auction_bidtoken_ata,
+            auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
             auctionToken: auction_token,
             bidToken: bid_token,
             tokenProgram: TOKEN_PROGRAM_ID,
@@ -306,8 +348,9 @@ describe("anchor-latest", async () => {
     .accounts({
         creator: sender.publicKey,
         auction: auction,
+        auctionVault: auction_vault,
         auctionVaultTokenAccount: auction_vault_ata,
-        auctionVaultBidTokenAccount: auction_bidtoken_ata,
+        auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
         creatorAuctionTokenAccount: sender_auctiontoken_ata,
         creatorBidTokenAccount: sender_bidtoken_ata,
         auctionToken: auction_token,
@@ -348,6 +391,7 @@ describe("anchor-latest", async () => {
           .accounts({
             owner: sender.publicKey,
             auction: auction,
+            auctionVault: auction_vault,
             rent: SYSVAR_RENT_PUBKEY,
             systemProgram: SystemProgram.programId,
           })
@@ -361,6 +405,7 @@ describe("anchor-latest", async () => {
         .accounts({
         owner: sender.publicKey,
         auction: auction,
+        auctionVault: auction_vault,
         ownerAuctionTokenAccount: sender_auctiontoken_ata,
         auctionVaultTokenAccount: auction_vault_ata,
         auctionToken: auction_token,
@@ -384,6 +429,7 @@ describe("anchor-latest", async () => {
           ).accounts({
             buyer: buyer.publicKey,
             auction: auction,
+            auctionVault: auction_vault,
             auctionVaultTokenAccount: auction_vault_ata,
             buyerAuctionTokenAccount: buyer_auctiontoken_ata,
             auctionToken: auction_token,
@@ -404,8 +450,9 @@ describe("anchor-latest", async () => {
     .accounts({
         creator: sender.publicKey,
         auction: auction,
+        auctionVault: auction_vault,
         auctionVaultTokenAccount: auction_vault_ata,
-        auctionVaultBidTokenAccount: auction_bidtoken_ata,
+        auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
         creatorAuctionTokenAccount: sender_auctiontoken_ata,
         creatorBidTokenAccount: sender_bidtoken_ata,
         auctionToken: auction_token,
