@@ -88,7 +88,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     ]];
 
     // Transfer if there are any remaining tokens
-    if (auction.token_cap - auction.remaining_tokens) > 0 {
+    if auction.remaining_tokens > 0 {
         let trans_spl = Transfer_Spl {
             from: ctx.accounts.auction_vault_token_account.to_account_info(),
             to: ctx.accounts.creator_auction_token_account.to_account_info(),

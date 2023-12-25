@@ -92,7 +92,7 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     }
 
     // amount of token to send to buyer
-    let token_amount_to_buy = spl_amount * auction.unit_price;
+    let token_amount_to_buy = spl_amount / auction.unit_price;
 
     // Check if token amount to buy is greater than 0
     if spl_amount == 0 {

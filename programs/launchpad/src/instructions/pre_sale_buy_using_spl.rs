@@ -115,7 +115,7 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     }
 
     // amount of token to send to buyer
-    let auction_token_amount_to_buy = spl_amount * auction.unit_price;
+    let auction_token_amount_to_buy = spl_amount / auction.unit_price;
 
     // Ensure if the buyer is within the limit
     if auction_token_amount_to_buy > whitelist.limit {
