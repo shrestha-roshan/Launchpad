@@ -30,6 +30,8 @@ pub enum LaunchpadError {
     PreSaleNotEnded,
     #[msg("Invalid Token Amount")]
     InvalidTokenAmount,
+    #[msg("Invalid Sol Amount")]
+    InvalidSolAmount,
     #[msg("Invalid Auction Times")]
     InvalidAuctionTimes,
     #[msg("User Already Participated")]

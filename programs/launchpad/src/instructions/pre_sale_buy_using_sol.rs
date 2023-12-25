@@ -1,31 +1,15 @@
+use anchor_lang::prelude::*;
+use anchor_spl::token::{Token, TokenAccount, Mint, Transfer as Transfer_Spl, transfer as transfer_spl};
 use crate::{
     error::LaunchpadError,
-    state::{Auction, Buyer, Whitelist},
+    state::{Auction, Whitelist},
 };
-use anchor_lang::prelude::*;
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount, Transfer},
-};
+use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Tranfer_Sol};
 
 #[derive(Accounts)]
-pub struct PreSaleBuy<'info> {
+pub struct PreSaleBuyUsingSol<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
-    #[account(
-        init_if_needed,
-        space = 8 + std::mem::size_of::<Buyer>(),
-        payer = buyer,
-        seeds = [b"buyer", buyer.key().as_ref(), auction.key().as_ref()],
-        bump,
-    )]
-    pub buyer_pda: Box<Account<'info, Buyer>>,
-    #[account(
-        mut,
-        constraint = buyer_bid_token_account.owner == buyer.key(),
-        constraint = buyer_bid_token_account.mint == bid_token.key()
-    )]
-    pub buyer_bid_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = buyer_auction_token_account.owner == buyer.key(),
@@ -51,46 +35,32 @@ pub struct PreSaleBuy<'info> {
         constraint = auction_vault_token_account.mint == auction_token.key()
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        constraint = auction_vault_bid_token_account.owner == auction_vault.key(),
-        constraint = auction_vault_bid_token_account.mint == bid_token.key()
-    )]
-    pub auction_vault_bid_token_account: Box<Account<'info, TokenAccount>>,
     pub auction_token: Box<Account<'info, Mint>>,
-    pub bid_token: Box<Account<'info, Mint>>,
+    // pub bid_token: Box<Account<'info, Mint>>,
     #[account(
         mut,
         seeds = [b"whitelist", buyer.key().as_ref(), auction.key().as_ref()],
         bump
     )]
     pub whitelist_pda: Box<Account<'info, Whitelist>>,
-    pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub clock: Sysvar<'info, Clock>,
-    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>
 }
 
-pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> {
     let whitelist = &mut ctx.accounts.whitelist_pda;
     let auction = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
-    let buyer = ctx.accounts.buyer.clone();
     let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
-    let auction_vault_spl_account = ctx.accounts.auction_vault_bid_token_account.clone();
-    let buyer_spl_account = ctx.accounts.buyer_bid_token_account.clone();
-    let token_program = ctx.accounts.token_program.as_ref();
     let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
-    let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
-
-    // Ensure that the buyer has already participated in the auction
-    if buyer_pda.participate {
-        return Err(LaunchpadError::AlreadyParticipated.into());
-    }
-
-    // Check if token amount to buy is greater than 0
-    if spl_amount == 0 {
-        return Err(LaunchpadError::InvalidTokenAmount.into());
+    let buyer = ctx.accounts.buyer.clone();
+    let token_program = ctx.accounts.token_program.as_ref();
+    let system_program = ctx.accounts.system_program.as_ref();
+    
+    // Check if sol amount using for buying is greater than 0
+    if sol_amount == 0 {
+        return Err(LaunchpadError::InvalidSolAmount.into());
     }
 
     // Ensure if the auction presale is enabled
@@ -110,16 +80,16 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     }
 
     // amount of token to send to buyer
-    let auction_token_amount_to_buy = spl_amount * auction.unit_price;
+    let auction_token_amount_to_buy = sol_amount * auction.unit_price;
 
     // Ensure if the buyer is within the limit
     if auction_token_amount_to_buy > whitelist.limit {
         return Err(LaunchpadError::ExceedsLimit.into());
     }
 
-    // Ensure that the auction is enabled for spl payments
-    if auction.pay_with_native {
-        return Err(LaunchpadError::NonSplAuction.into());
+    // Ensure that the auction is enabled for sol payments
+    if !auction.pay_with_native {
+        return Err(LaunchpadError::NonNativeAuction.into());
     }
 
     // Ensure that the auction is initialized and live
@@ -146,36 +116,32 @@ pub fn handler(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
     ]];
 
     // Perform the token transfer to the buyer
-    let transfer = Transfer {
+    let trans_spl = Transfer_Spl {
         from: auction_vault_token_account.to_account_info(),
         to: buyer_auction_token_account.to_account_info(),
         authority: auction_vault.to_account_info(),
     };
 
-    let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
-        token_program.to_account_info(),
-        transfer,
-        auction_vault_seed,
-    );
-    anchor_spl::token::transfer(ctx, auction_token_amount_to_buy)?;
-
-    // Transfer spl from buyer to auction
-    let transfer_spl = Transfer {
-        from: buyer_spl_account.to_account_info(),
-        to: auction_vault_spl_account.to_account_info(),
-        authority: buyer.to_account_info(),
-    };
-
     let ctx: CpiContext<'_, '_, '_, '_, _> =
-        CpiContext::new(token_program.to_account_info(), transfer_spl);
-    anchor_spl::token::transfer(ctx, spl_amount)?;
+        CpiContext::new_with_signer(
+            token_program.to_account_info(),
+            trans_spl,
+            auction_vault_seed
+        );
+    transfer_spl(ctx, auction_token_amount_to_buy)?;
+
+    // Transfer sol from buyer to auction vault
+    let trans_sol = Tranfer_Sol {
+        from: buyer.to_account_info(),
+        to: auction_vault.to_account_info(),
+    };
+    let ctx_sol: CpiContext<'_, '_, '_, '_, _> =
+        CpiContext::new(system_program.to_account_info(), trans_sol);
+    transfer_sol(ctx_sol, sol_amount)?;
 
     // Update state
     auction.remaining_tokens -= auction_token_amount_to_buy;
     whitelist.limit -= auction_token_amount_to_buy;
-
-    // Update the buyer account
-    buyer_pda.participate = true;
 
     Ok(())
 }

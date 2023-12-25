@@ -39,7 +39,11 @@ mod launchpad {
         whitelist::handler(ctx, params)
     }
 
-    pub fn pre_sale_buy(ctx: Context<PreSaleBuy>, spl_amount: u64) -> Result<()> {
-        pre_sale_buy::handler(ctx, spl_amount)
+    pub fn pre_sale_buy_using_spl(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> {
+        pre_sale_buy_using_spl::handler(ctx, spl_amount)
+    }
+
+    pub fn pre_sale_buy_using_sol(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> {
+        pre_sale_buy_using_sol::handler(ctx, sol_amount)
     }
 }
