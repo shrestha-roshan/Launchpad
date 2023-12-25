@@ -1,6 +1,6 @@
 use crate::{
     error::LaunchpadError,
-    state::{Auction, Whitelist},
+    state::{Auction, Buyer, Whitelist},
 };
 use anchor_lang::prelude::*;
 use anchor_spl::{
@@ -12,6 +12,14 @@ use anchor_spl::{
 pub struct PreSaleBuyUsingSpl<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
+    #[account(
+        init_if_needed,
+        space = 8 + std::mem::size_of::<Buyer>(),
+        payer = buyer,
+        seeds = [b"buyer", buyer.key().as_ref(), auction.key().as_ref()],
+        bump,
+    )]
+    pub buyer_pda: Box<Account<'info, Buyer>>,
     #[account(
         mut,
         constraint = buyer_bid_token_account.owner == buyer.key(),
@@ -60,6 +68,7 @@ pub struct PreSaleBuyUsingSpl<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub clock: Sysvar<'info, Clock>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> {
@@ -67,15 +76,26 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     let auction = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
     let buyer = ctx.accounts.buyer.clone();
+    let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
     let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
     let auction_vault_spl_account = ctx.accounts.auction_vault_bid_token_account.clone();
     let buyer_spl_account = ctx.accounts.buyer_bid_token_account.clone();
     let token_program = ctx.accounts.token_program.as_ref();
     let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
 
+    // Ensure that the buyer has already participated in the auction
+    if buyer_pda.participate {
+        return Err(LaunchpadError::AlreadyParticipated.into());
+    }
+
     // Check if token amount used for buying is greater than 0
     if spl_amount == 0 {
         return Err(LaunchpadError::InvalidTokenAmount.into());
+    }
+
+    // Check if the spl token is enough to buy at least one ticket_price
+    if spl_amount < auction.ticket_price {
+        return Err(LaunchpadError::InsufficientSolFor1ticket.into());
     }
 
     // Ensure if the auction presale is enabled
@@ -137,8 +157,11 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
         authority: auction_vault.to_account_info(),
     };
 
-    let ctx: CpiContext<'_, '_, '_, '_, _> =
-        CpiContext::new_with_signer(token_program.to_account_info(), transfer, auction_vault_seed);
+    let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        transfer,
+        auction_vault_seed,
+    );
     anchor_spl::token::transfer(ctx, auction_token_amount_to_buy)?;
 
     // Transfer spl from buyer to auction
@@ -155,6 +178,9 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     // Update state
     auction.remaining_tokens -= auction_token_amount_to_buy;
     whitelist.limit -= auction_token_amount_to_buy;
+
+    // Update buyer state
+    buyer_pda.participate = true;
 
     Ok(())
 }

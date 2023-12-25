@@ -86,6 +86,11 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
         return Err(LaunchpadError::AlreadyParticipated.into());
     }
 
+    // Check if the spl token is enough to buy at least one ticket_price
+    if spl_amount < auction.ticket_price {
+        return Err(LaunchpadError::InsufficientSolFor1ticket.into());
+    }
+
     // amount of token to send to buyer
     let token_amount_to_buy = spl_amount * auction.unit_price;
 
