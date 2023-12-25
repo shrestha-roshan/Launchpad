@@ -101,7 +101,7 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
         &["auction_vault".as_bytes(), auction_key.as_ref()],
         ctx.program_id,
     );
-    let auction_seed: &[&[&[_]]] = &[&[
+    let auction_vault_seed: &[&[&[_]]] = &[&[
         "auction_vault".as_bytes(),
         auction_key.as_ref(),
         &[bump_seed],
@@ -115,7 +115,7 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> =
-        CpiContext::new_with_signer(token_program.to_account_info(), transfer, auction_seed);
+        CpiContext::new_with_signer(token_program.to_account_info(), transfer, auction_vault_seed);
     anchor_spl::token::transfer(ctx, token_amount_to_buy)?;
 
     // Transfer spl from buyer to auction
