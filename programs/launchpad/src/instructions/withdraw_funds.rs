@@ -1,5 +1,6 @@
 use crate::{error::LaunchpadError, state::Auction};
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Tranfer_Sol};
 use anchor_spl::token::{
     transfer as transfer_spl, Mint, Token, TokenAccount, Transfer as Transfer_Spl,
@@ -104,7 +105,8 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
 
     // Transfer spl if tokens have been sold
     if auction.token_cap != auction.remaining_tokens && !auction.pay_with_native {
-        let spl_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
+        let spl_amount = (auction.token_cap - auction.remaining_tokens) * (auction.unit_price)
+            / LAMPORTS_PER_SOL;
         let trans_spl = Transfer_Spl {
             from: ctx
                 .accounts
@@ -123,7 +125,8 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
 
     //Transfer sol if tokens have been sold
     if auction.token_cap != auction.remaining_tokens && auction.pay_with_native {
-        let sol_amount = (auction.token_cap - auction.remaining_tokens) * auction.unit_price;
+        let sol_amount =
+            (auction.token_cap - auction.remaining_tokens) * auction.unit_price / LAMPORTS_PER_SOL;
         let trans_sol = Tranfer_Sol {
             from: auction_vault.to_account_info(),
             to: ctx.accounts.creator.to_account_info(),
