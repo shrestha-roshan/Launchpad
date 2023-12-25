@@ -36,6 +36,6 @@ pub enum LaunchpadError {
     InvalidAuctionTimes,
     #[msg("User Already Participated")]
     AlreadyParticipated,
-    #[msg("Insufficient Sol 1 ticket")]
-    InsufficientSolFor1ticket,
+    #[msg("Invalid Sol for 1 ticket")]
+    InvalidSolFor1ticket,
 }

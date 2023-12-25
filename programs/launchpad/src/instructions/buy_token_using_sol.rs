@@ -75,8 +75,8 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     let token_amount_to_buy = sol_amount * auction.unit_price;
 
     // Check if the sol is enough to buy at least one ticket_price
-    if sol_amount < auction.ticket_price {
-        return Err(LaunchpadError::InsufficientSolFor1ticket.into());
+    if sol_amount != auction.ticket_price {
+        return Err(LaunchpadError::InvalidSolFor1ticket.into());
     }
 
     // Ensure if the pre sale has been ended

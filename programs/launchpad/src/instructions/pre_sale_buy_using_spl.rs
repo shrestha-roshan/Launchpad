@@ -94,8 +94,8 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     }
 
     // Check if the spl token is enough to buy at least one ticket_price
-    if spl_amount < auction.ticket_price {
-        return Err(LaunchpadError::InsufficientSolFor1ticket.into());
+    if spl_amount != auction.ticket_price {
+        return Err(LaunchpadError::InvalidSolFor1ticket.into());
     }
 
     // Ensure if the auction presale is enabled
