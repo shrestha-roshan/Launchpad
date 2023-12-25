@@ -33,7 +33,7 @@ pub struct InitAuction<'info> {
     #[account(
         init_if_needed,
         payer = owner,
-        space = 8,
+        space = 0,
         seeds = [b"auction_vault", auction.key().as_ref()],
         bump,
     )]

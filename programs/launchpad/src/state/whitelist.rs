@@ -4,5 +4,4 @@ use anchor_lang::prelude::*;
 #[derive(Default, Debug)]
 pub struct Whitelist {
     pub whitelisted: bool,
-    pub limit: u64,
 }

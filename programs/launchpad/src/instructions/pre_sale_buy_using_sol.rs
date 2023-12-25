@@ -103,11 +103,6 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> 
         return Err(LaunchpadError::InvalidSolFor1ticket.into());
     }
 
-    // Ensure if the buyer is within the limit
-    if auction_token_amount_to_buy > whitelist.limit {
-        return Err(LaunchpadError::ExceedsLimit.into());
-    }
-
     // Ensure that the auction is enabled for sol payments
     if !auction.pay_with_native {
         return Err(LaunchpadError::NonNativeAuction.into());
@@ -161,7 +156,6 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> 
 
     // Update state
     auction.remaining_tokens -= auction_token_amount_to_buy;
-    whitelist.limit -= auction_token_amount_to_buy;
 
     // Update buyer state
     buyer_pda.participate = true;

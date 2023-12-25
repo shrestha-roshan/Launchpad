@@ -38,6 +38,5 @@ pub fn handler(ctx: Context<WhitelistUser>, params: WhitelistParams) -> Result<(
     }
     let whitelist = &mut ctx.accounts.whitelist_pda;
     whitelist.whitelisted = params.whitelisted;
-    whitelist.limit = params.limit;
     Ok(())
 }

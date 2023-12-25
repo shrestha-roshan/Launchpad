@@ -117,11 +117,6 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     // amount of token to send to buyer
     let auction_token_amount_to_buy = spl_amount / auction.unit_price;
 
-    // Ensure if the buyer is within the limit
-    if auction_token_amount_to_buy > whitelist.limit {
-        return Err(LaunchpadError::ExceedsLimit.into());
-    }
-
     // Ensure that the auction is enabled for spl payments
     if auction.pay_with_native {
         return Err(LaunchpadError::NonSplAuction.into());
@@ -177,7 +172,6 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
 
     // Update state
     auction.remaining_tokens -= auction_token_amount_to_buy;
-    whitelist.limit -= auction_token_amount_to_buy;
 
     // Update buyer state
     buyer_pda.participate = true;
