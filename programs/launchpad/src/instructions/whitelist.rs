@@ -4,7 +4,6 @@ use crate::{state::{whitelist::Whitelist, Auction}, error::LaunchpadError};
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct WhitelistParams {
     pub whitelisted: bool,
-    pub limit: u64,
 }
 
 #[derive(Accounts)]
