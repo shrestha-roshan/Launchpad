@@ -81,7 +81,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         ctx.program_id,
     );
 
-    let auction_seed: &[&[&[_]]] = &[&[
+    let auction_vault_seed: &[&[&[_]]] = &[&[
         "auction_vault".as_bytes(),
         auction_key.as_ref(),
         &[bump_seed],
@@ -97,7 +97,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             trans_spl,
-            auction_seed,
+            auction_vault_seed,
         );
         transfer_spl(ctx, auction.remaining_tokens)?;
     }
@@ -116,7 +116,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             trans_spl,
-            auction_seed,
+            auction_vault_seed,
         );
         transfer_spl(ctx, spl_amount)?;
     }
@@ -131,7 +131,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
             trans_sol,
-            auction_seed,
+            auction_vault_seed,
         );
         transfer_sol(ctx, sol_amount)?;
     }

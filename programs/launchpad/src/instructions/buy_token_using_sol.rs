@@ -94,7 +94,7 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
         &["auction_vault".as_bytes(), auction_key.as_ref()],
         ctx.program_id,
     );
-    let auction_seed: &[&[&[_]]] = &[&[
+    let auction_vault_seed: &[&[&[_]]] = &[&[
         "auction_vault".as_bytes(),
         auction_key.as_ref(),
         &[bump_seed],
@@ -104,11 +104,11 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     let trns_spl = Transfer_Spl {
         from: auction_vault_token_account.to_account_info(),
         to: buyer_auction_token_account.to_account_info(),
-        authority: auction.to_account_info(),
+        authority: auction_vault.to_account_info(),
     };
 
     let ctx_spl: CpiContext<'_, '_, '_, '_, _> =
-        CpiContext::new_with_signer(token_program.to_account_info(), trns_spl, auction_seed);
+        CpiContext::new_with_signer(token_program.to_account_info(), trns_spl,auction_vault_seed);
     transfer_spl(ctx_spl, token_amount_to_buy)?;
 
     // Update the remaining tokens in the auction
