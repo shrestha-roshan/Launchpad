@@ -1,3 +1,4 @@
+use crate::state::Buyer;
 use crate::{error::LaunchpadError, state::Auction};
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Transfer_Sol};
@@ -23,6 +24,14 @@ pub struct BuyTokensSol<'info> {
     )]
     /// CHECK: seeds has been checked
     pub auction_vault: AccountInfo<'info>,
+    #[account(
+        init_if_needed,
+        space = 8 + std::mem::size_of::<Buyer>(),
+        payer = buyer,
+        seeds = [b"buyer", buyer.key().as_ref(), auction.key().as_ref()],
+        bump,
+    )]
+    pub buyer_pda: Box<Account<'info, Buyer>>,
     #[account(
         mut,
         constraint = auction_vault_token_account.owner == auction_vault.key(),
@@ -50,6 +59,12 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     let token_program = ctx.accounts.token_program.as_ref();
     let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
     let system_program = ctx.accounts.system_program.as_ref();
+    let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
+
+    // Ensure that the buyer has already participated in the auction
+    if buyer_pda.participate {
+        return Err(LaunchpadError::AlreadyParticipated.into());
+    }
 
     // Ensure that the auction is enabled for sol payments
     if !auction.pay_with_native {
@@ -58,6 +73,11 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
 
     // amount of token to send to buyer
     let token_amount_to_buy = sol_amount * auction.unit_price;
+
+    // Check if the sol is enough to buy at least one ticket_price
+    if sol_amount < auction.ticket_price {
+        return Err(LaunchpadError::InsufficientSolFor1ticket.into());
+    }
 
     // Ensure if the pre sale has been ended
     if auction.pre_sale && ctx.accounts.clock.unix_timestamp < auction.pre_sale_end_time {
@@ -107,12 +127,18 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
         authority: auction_vault.to_account_info(),
     };
 
-    let ctx_spl: CpiContext<'_, '_, '_, '_, _> =
-        CpiContext::new_with_signer(token_program.to_account_info(), trns_spl,auction_vault_seed);
+    let ctx_spl: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        trns_spl,
+        auction_vault_seed,
+    );
     transfer_spl(ctx_spl, token_amount_to_buy)?;
 
     // Update the remaining tokens in the auction
     auction.remaining_tokens -= token_amount_to_buy;
+
+    // Update the buyer account
+    buyer_pda.participate = true;
 
     Ok(())
 }

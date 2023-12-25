@@ -14,6 +14,7 @@ pub struct InitAuctionParams {
     pub pre_sale: bool,
     pub pre_sale_start_time: i64,
     pub pre_sale_end_time: i64,
+    pub ticket_price: u64,
 }
 
 #[derive(Accounts)]
@@ -63,5 +64,6 @@ pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<(
     auction.pre_sale = params.pre_sale;
     auction.pre_sale_start_time = params.pre_sale_start_time;
     auction.pre_sale_end_time = params.pre_sale_end_time;
+    auction.ticket_price = params.ticket_price;
     Ok(())
 }

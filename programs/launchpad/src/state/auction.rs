@@ -16,4 +16,5 @@ pub struct Auction {
     pub pre_sale: bool,
     pub pre_sale_start_time: i64,
     pub pre_sale_end_time: i64,
+    pub ticket_price: u64,
 }
