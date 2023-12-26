@@ -27,8 +27,8 @@ mod launchpad {
         buy_token_using_spl::handler(ctx, spl_amount)
     }
 
-    pub fn buy_token_using_sol(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
-        buy_token_using_sol::handler(ctx, sol_amount)
+    pub fn buy_token_using_sol(ctx: Context<BuyTokensSol>) -> Result<()> {
+        buy_token_using_sol::handler(ctx)
     }
 
     pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
@@ -43,7 +43,7 @@ mod launchpad {
         pre_sale_buy_using_spl::handler(ctx, spl_amount)
     }
 
-    pub fn pre_sale_buy_using_sol(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> {
-        pre_sale_buy_using_sol::handler(ctx, sol_amount)
+    pub fn pre_sale_buy_using_sol(ctx: Context<PreSaleBuyUsingSol>) -> Result<()> {
+        pre_sale_buy_using_sol::handler(ctx)
     }
 }

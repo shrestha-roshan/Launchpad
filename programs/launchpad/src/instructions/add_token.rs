@@ -1,5 +1,5 @@
 use crate::{error::LaunchpadError, state::auction::Auction};
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::native_token::LAMPORTS_PER_SOL};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount, Transfer},
@@ -62,6 +62,6 @@ pub fn handler(ctx: Context<AddToken>) -> Result<()> {
     };
 
     let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new(token_program, transfer);
-    anchor_spl::token::transfer(ctx, auction.token_cap)?;
+    anchor_spl::token::transfer(ctx, auction.tokens_in_pool * LAMPORTS_PER_SOL)?;
     Ok(())
 }

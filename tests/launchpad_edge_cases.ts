@@ -70,7 +70,7 @@ describe("anchor-latest", async () => {
   );
   console.log("buyer_auctiontoken_ata", buyer_auctiontoken_ata.toString());
 
-  const auction_pda_name = "lampbit-auction-test";
+  const auction_pda_name = "lampbit-auction-edge2";
   const [auction, _] = PublicKey.findProgramAddressSync(
     [
       Buffer.from(anchor.utils.bytes.utf8.encode("auction")),
@@ -79,6 +79,16 @@ describe("anchor-latest", async () => {
     program.programId
   );
   console.log("auction:", auction.toString());
+
+  const [buyer_pda, ____] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(anchor.utils.bytes.utf8.encode("buyer")),
+      buyer.publicKey.toBuffer(),
+      auction.toBuffer()
+    ],
+    program.programId
+  )
+  console.log("buyer_pda:", buyer_pda.toString());
 
   const [auction_vault, __] = PublicKey.findProgramAddressSync(
     [
@@ -112,6 +122,39 @@ describe("anchor-latest", async () => {
     program.programId
   );
   console.log("whitelist_pda:", whitelist_pda.toString());
+
+  // Reference Data
+  const actual_data = {
+    ticker: "$SOBB",
+    funding_demand: 1782, // in SOL
+    presale_start_time: "Dec 28th, 23:30 [UTC]", // should be in unix 
+    presale_end_time: "Dec 29th, 11:30 [UTC]",
+    auction_start_time: "Dec 29th, 12:30 [UTC]", 
+    auction_end_time: "Dec 29th, 13:30 [UTC]",
+    token_amount: 360000000, // total quantity of token inside pool (Constant) 
+    token_price: 0.00000495, //in SOL,  ≈ $0.0005
+    unit_ticket_amount: 400000, // $SOBB (Constant)
+    number_of_tickets: 900,  // [calc: token_amount / unit_ticket_amount]
+    ticket_price:  1.98, // 1.98 SOL ≈ $216 [calc: funding_demand / number_of_tickets]
+    // This ticket_price is the SOL needed to buy one ticket
+  }
+
+  // Test Data
+  const test_data = {
+    funding_demand: 1782,
+    token_amount: 360000000,
+    unit_ticket_amount: 400000,
+  }
+  
+  // const auction_data = await program.account.auction.fetch(auction);
+  // console.log("fundingDemand", auction_data.fundingDemand.toNumber())
+  // console.log("tokens_in_pool", auction_data.tokensInPool.toNumber())
+  // console.log("tokenQuantityPerTicket", auction_data.tokenQuantityPerTicket.toNumber())
+  // const ticket_price =  auction_data.fundingDemand.toNumber() / (
+  //   auction_data.tokensInPool.toNumber() / auction_data.tokenQuantityPerTicket.toNumber()
+  // )
+  // console.log("ticket_price:", ticket_price)
+  // console.log("remainingTokens", auction_data.remainingTokens.toNumber())
   // assert(false)
 
   describe("ATA SanityCheck!", async () => {
@@ -164,22 +207,20 @@ describe("anchor-latest", async () => {
         const start_time = Math.floor(Date.now() / 1000);
         console.log("start_time:", start_time);
     
-        const unit_price = 1;
-        const tokenCap = 2;
-    
         const init_auc_tx = await program.methods
           .initAuction({
             name: auction_pda_name,
             enabled: true,
             fixedAmount: true,
-            startTime: new BN(start_time + 5),
-            endTime: new BN(start_time + 15),
-            unitPrice: new BN(unit_price),
-            tokenCap: new BN(tokenCap * LAMPORTS_PER_SOL),
-            payWithNative: false,
+            startTime: new BN(start_time + 15),
+            endTime: new BN(start_time + 25),
+            payWithNative: true,
             preSale: true,
             preSaleStartTime: new BN(start_time),
-            preSaleEndTime: new BN(start_time + 5),
+            preSaleEndTime: new BN(start_time + 10),
+            tokensInPool: new BN(test_data.token_amount),
+            tokenQuantityPerTicket: new BN(test_data.unit_ticket_amount),
+            fundingDemand: new BN(test_data.funding_demand)
           })
           .accounts({
             owner: sender.publicKey,
@@ -191,6 +232,11 @@ describe("anchor-latest", async () => {
           .signers([sender])
           .rpc();
         console.log("init_auc_tx", init_auc_tx);
+
+        const auction_data = program.account.auction.fetch(auction);
+        console.log("tokensInPool", (await auction_data).tokensInPool.toNumber())
+        console.log("tokenQuantityPerTicket", (await auction_data).tokenQuantityPerTicket.toNumber())
+        console.log("fundingDemand", (await auction_data).fundingDemand.toNumber())
     });
 
     it("Add Token!", async () => {
@@ -216,7 +262,6 @@ describe("anchor-latest", async () => {
         const whitelist_tx = await program.methods.whitelist(
             {
               whitelisted: true,
-              limit: new BN(1 * LAMPORTS_PER_SOL),  // How much can a whitelisted user buy.
             }
           )
           .accounts({
@@ -231,162 +276,46 @@ describe("anchor-latest", async () => {
         console.log("whitelist_tx", whitelist_tx);
     });
 
-    it("PreSale Buy!", async () => {
-        console.log("Lets wait for Auction to go LIVE...")
-        await delay(6000);
-
-        // NOTE: Now, only the whitelisted user should be able to buy the auction token allocated in the limit.
-        const spl_amount = 1;
-
-        const presale_buy_tx = await program.methods.preSaleBuy(
-        new BN(spl_amount * LAMPORTS_PER_SOL)
-        )
+    it("PreSale Buy using SOL!", async () => {
+        const presale_buy_tx = await program.methods.preSaleBuyUsingSol()
         .accounts({
             buyer: buyer.publicKey,
-            buyerBidTokenAccount: buyer_bidtoken_ata,
+            buyerPda: buyer_pda,
             buyerAuctionTokenAccount: buyer_auctiontoken_ata,
             auction: auction,
             auctionVault: auction_vault,
             auctionVaultTokenAccount: auction_vault_ata,
-            auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
             auctionToken: auction_token,
-            bidToken: bid_token,
             whitelistPda: whitelist_pda,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             clock: SYSVAR_CLOCK_PUBKEY,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId
         }).signers([buyer])
         .rpc();
         console.log("presale_buy_tx", presale_buy_tx);
     });
   });
   // assert(false)
-  describe("Case 2: Init Auction(paywithSpl), Add Token, Buy Token using SPL, Withdraw Funds!", async () => {
+  describe("Case 2: Init Auction(paywithSol), Add Token, Buy Token using Sol, Withdraw Funds!", async () => {
     it("Init Auction!", async () => {
         // get the timestamp when auction goes LIVE
         const start_time = Math.floor(Date.now() / 1000);
         console.log("start_time:", start_time);
-    
-        const unit_price = 1;
-        const tokenCap = 2;
-    
+
         const init_auc_tx = await program.methods
           .initAuction({
             name: auction_pda_name,
             enabled: true,
             fixedAmount: true,
-            startTime: new BN(start_time + 5),
-            endTime: new BN(start_time + 15),
-            unitPrice: new BN(unit_price),
-            tokenCap: new BN(tokenCap * LAMPORTS_PER_SOL),
-            payWithNative: false,
-            preSale: true,
-            preSaleStartTime: new BN(start_time),
-            preSaleEndTime: new BN(start_time + 5),
-          })
-          .accounts({
-            owner: sender.publicKey,
-            auction: auction,
-            auctionVault: auction_vault,
-            rent: SYSVAR_RENT_PUBKEY,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([sender])
-          .rpc();
-        console.log("init_auc_tx", init_auc_tx);
-    });
-
-    it("Add Token!", async () => {
-        const add_token_tx = await program.methods.addToken()
-        .accounts({
-        owner: sender.publicKey,
-        auction: auction,
-        auctionVault: auction_vault,
-        ownerAuctionTokenAccount: sender_auctiontoken_ata,
-        auctionVaultTokenAccount: auction_vault_ata,
-        auctionToken: auction_token,
-        rent: SYSVAR_RENT_PUBKEY,
-        systemProgram: SystemProgram.programId,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        clock: SYSVAR_CLOCK_PUBKEY,
-        }).signers([sender])
-        .rpc();
-        console.log("add_token_tx", add_token_tx);
-    });
-
-    it("Buy Tokens using SPL!", async () => {
-        console.log("Lets wait for Auction to go LIVE...")
-        await delay(6000);
-
-        const bidding_spl_amount = 1;
-        const buy_token_using_spl_tx = await program.methods.buyTokenUsingSpl(
-          new BN(bidding_spl_amount * LAMPORTS_PER_SOL)
-          ).accounts({
-            buyer: buyer.publicKey,
-            buyerBidTokenAccount: buyer_bidtoken_ata,
-            buyerAuctionTokenAccount: buyer_auctiontoken_ata,
-            auction: auction,
-            auctionVault: auction_vault,
-            auctionVaultTokenAccount: auction_vault_ata,
-            auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
-            auctionToken: auction_token,
-            bidToken: bid_token,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            clock: SYSVAR_CLOCK_PUBKEY,
-          }).signers([buyer])
-          .rpc();
-          console.log("buy_token_using_spl_tx", buy_token_using_spl_tx);
-    });
-
-    it("Withdraw Funds!", async () => {
-    console.log("Waiting for Auction to End...")
-    await delay(10000);
-
-    const withdraw_funds_tx = await program.methods.withdrawFunds()
-    .accounts({
-        creator: sender.publicKey,
-        auction: auction,
-        auctionVault: auction_vault,
-        auctionVaultTokenAccount: auction_vault_ata,
-        auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
-        creatorAuctionTokenAccount: sender_auctiontoken_ata,
-        creatorBidTokenAccount: sender_bidtoken_ata,
-        auctionToken: auction_token,
-        bidToken: bid_token,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        clock: SYSVAR_CLOCK_PUBKEY,
-        systemProgram: SystemProgram.programId
-        }).signers([sender])
-        .rpc();
-        console.log("withdraw_funds_tx", withdraw_funds_tx);
-    });
-
-  });
-//   assert(false)
-  describe("Case 3: Init Auction(paywithSol), Add Token, Buy Token using SOL, Withdraw Funds!", async () => {
-    it("Init Auction!", async () => {
-        // get the timestamp when auction goes LIVE
-        const start_time = Math.floor(Date.now() / 1000);
-        console.log("start_time:", start_time);
-    
-        const unit_price = 1;
-        const tokenCap = 2;
-    
-        const init_auc_tx = await program.methods
-          .initAuction({
-            name: auction_pda_name,
-            enabled: true,
-            fixedAmount: true,
-            startTime: new BN(start_time + 5),
-            endTime: new BN(start_time + 15),
-            unitPrice: new BN(unit_price),
-            tokenCap: new BN(tokenCap * LAMPORTS_PER_SOL),
+            startTime: new BN(start_time + 7),
+            endTime: new BN(start_time + 14),
             payWithNative: true,
             preSale: true,
             preSaleStartTime: new BN(start_time),
             preSaleEndTime: new BN(start_time + 5),
+            tokensInPool: new BN(test_data.token_amount),
+            tokenQuantityPerTicket: new BN(test_data.unit_ticket_amount),
+            fundingDemand: new BN(test_data.funding_demand)
           })
           .accounts({
             owner: sender.publicKey,
@@ -419,24 +348,23 @@ describe("anchor-latest", async () => {
         console.log("add_token_tx", add_token_tx);
     });
 
-    it("Buy Tokens using SOL!", async () => {
+    it("Buy Tokens using Sol!", async () => {
         console.log("Lets wait for Auction to go LIVE...")
-        await delay(6000);
+        await delay(7000);
 
-        const bidding_sol_amount = 0.005;
-        const buy_token_using_spl_tx = await program.methods.buyTokenUsingSol(
-          new BN(bidding_sol_amount * LAMPORTS_PER_SOL)
-          ).accounts({
+        const buy_token_using_spl_tx = await program.methods.buyTokenUsingSol()
+        .accounts({
             buyer: buyer.publicKey,
             auction: auction,
             auctionVault: auction_vault,
+            buyerPda: buyer_pda,
             auctionVaultTokenAccount: auction_vault_ata,
             buyerAuctionTokenAccount: buyer_auctiontoken_ata,
             auctionToken: auction_token,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             clock: SYSVAR_CLOCK_PUBKEY,
-            systemProgram: SystemProgram.programId,
+            systemProgram: SystemProgram.programId
           }).signers([buyer])
           .rpc();
           console.log("buy_token_using_spl_tx", buy_token_using_spl_tx);
@@ -444,7 +372,7 @@ describe("anchor-latest", async () => {
 
     it("Withdraw Funds!", async () => {
     console.log("Waiting for Auction to End...")
-    await delay(10000);
+    await delay(7000);
 
     const withdraw_funds_tx = await program.methods.withdrawFunds()
     .accounts({
@@ -452,11 +380,8 @@ describe("anchor-latest", async () => {
         auction: auction,
         auctionVault: auction_vault,
         auctionVaultTokenAccount: auction_vault_ata,
-        auctionVaultBidTokenAccount: auction_vault_bidtoken_ata,
         creatorAuctionTokenAccount: sender_auctiontoken_ata,
-        creatorBidTokenAccount: sender_bidtoken_ata,
         auctionToken: auction_token,
-        bidToken: bid_token,
         tokenProgram: TOKEN_PROGRAM_ID,
         clock: SYSVAR_CLOCK_PUBKEY,
         systemProgram: SystemProgram.programId
@@ -466,5 +391,4 @@ describe("anchor-latest", async () => {
     });
 
   });
-  
 });

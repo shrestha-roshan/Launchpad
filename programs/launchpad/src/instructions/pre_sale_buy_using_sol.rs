@@ -2,7 +2,7 @@ use crate::{
     error::LaunchpadError,
     state::{Auction, Buyer, Whitelist},
 };
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::native_token::LAMPORTS_PER_SOL};
 use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Tranfer_Sol};
 use anchor_spl::token::{
     transfer as transfer_spl, Mint, Token, TokenAccount, Transfer as Transfer_Spl,
@@ -46,7 +46,6 @@ pub struct PreSaleBuyUsingSol<'info> {
     )]
     pub auction_vault_token_account: Box<Account<'info, TokenAccount>>,
     pub auction_token: Box<Account<'info, Mint>>,
-    // pub bid_token: Box<Account<'info, Mint>>,
     #[account(
         mut,
         seeds = [b"whitelist", buyer.key().as_ref(), auction.key().as_ref()],
@@ -58,7 +57,7 @@ pub struct PreSaleBuyUsingSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<PreSaleBuyUsingSol>) -> Result<()> {
     let whitelist = &mut ctx.accounts.whitelist_pda;
     let auction = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
@@ -69,24 +68,18 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> 
     let system_program = ctx.accounts.system_program.as_ref();
     let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
 
-    // Ensure that the buyer has already participated in the auction
+    // ticket_price (in SOL) calc: funding_demand / no.of tickets
+    let ticket_price = (auction.funding_demand * LAMPORTS_PER_SOL) / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
+
+    // Ensure that the buyer has not participated in the auction
+    // This is to restrict same user to participate in same auction multiple times
     if buyer_pda.participate {
         return Err(LaunchpadError::AlreadyParticipated.into());
-    }
-
-    // Check if sol amount using for buying is greater than 0
-    if sol_amount == 0 {
-        return Err(LaunchpadError::InvalidSolAmount.into());
     }
 
     // Ensure if the auction presale is enabled
     if !auction.pre_sale {
         return Err(LaunchpadError::PreSaleNotEnabled.into());
-    }
-
-    // Ensure if the the buyer is whitelisted
-    if !whitelist.whitelisted {
-        return Err(LaunchpadError::NotWhitelisted.into());
     }
 
     // Ensure presale time is valid
@@ -95,12 +88,9 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> 
         return Err(LaunchpadError::InvalidPresaleTime.into());
     }
 
-    // amount of token to send to buyer
-    let auction_token_amount_to_buy: u64 = sol_amount / auction.unit_price;
-
-    // Check if the sol is enough to buy at least one ticket_price
-    if sol_amount != auction.ticket_price {
-        return Err(LaunchpadError::InvalidSolFor1ticket.into());
+    // Ensure if the the buyer is whitelisted
+    if !whitelist.whitelisted {
+        return Err(LaunchpadError::NotWhitelisted.into());
     }
 
     // Ensure that the auction is enabled for sol payments
@@ -108,13 +98,12 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> 
         return Err(LaunchpadError::NonNativeAuction.into());
     }
 
-    // Ensure that the auction is initialized and live
-    if !(auction.enabled && (current_ts > auction.start_time && current_ts < auction.end_time)) {
-        return Err(LaunchpadError::InvalidAuction.into());
-    }
+    // amount of tokens to send to buyer
+    let auction_token_amount_to_buy = auction.token_quantity_per_ticket * LAMPORTS_PER_SOL;
 
     // Ensure there are enough tokens remaining for the buyer
-    if auction.remaining_tokens < auction_token_amount_to_buy {
+    let remaining_tokens_in_auction_pool = auction.remaining_tokens * LAMPORTS_PER_SOL;
+    if remaining_tokens_in_auction_pool < auction_token_amount_to_buy {
         return Err(LaunchpadError::InsufficientTokens.into());
     }
 
@@ -152,10 +141,10 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>, sol_amount: u64) -> Result<()> 
     };
     let ctx_sol: CpiContext<'_, '_, '_, '_, _> =
         CpiContext::new(system_program.to_account_info(), trans_sol);
-    transfer_sol(ctx_sol, sol_amount)?;
+    transfer_sol(ctx_sol, ticket_price)?;
 
     // Update state
-    auction.remaining_tokens -= auction_token_amount_to_buy;
+    auction.remaining_tokens -= auction_token_amount_to_buy/LAMPORTS_PER_SOL;
 
     // Update buyer state
     buyer_pda.participate = true;

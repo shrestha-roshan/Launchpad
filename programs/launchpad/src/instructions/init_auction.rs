@@ -8,13 +8,13 @@ pub struct InitAuctionParams {
     pub fixed_amount: bool,
     pub start_time: i64,
     pub end_time: i64,
-    pub unit_price: u64,
-    pub token_cap: u64,
     pub pay_with_native: bool,
     pub pre_sale: bool,
     pub pre_sale_start_time: i64,
     pub pre_sale_end_time: i64,
-    pub ticket_price: u64,
+    pub tokens_in_pool: u64,  // pool of total tokens
+    pub token_quantity_per_ticket: u64,  // no. of tokens in one ticket
+    pub funding_demand: u64, // in SOL (return on investment)
 }
 
 #[derive(Accounts)]
@@ -46,24 +46,34 @@ pub struct InitAuction<'info> {
 pub fn handler(ctx: Context<InitAuction>, params: InitAuctionParams) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
 
-    // Validate parameters
+    // Ensure auction end time is greater than auction start time
     if params.start_time >= params.end_time {
         return Err(LaunchpadError::InvalidAuctionTimes.into());
+    }
+    
+    // Ensure pre-sale end time is greater than pre-sale start time
+    if params.pre_sale_start_time >= params.pre_sale_end_time {
+        return Err(LaunchpadError::InvalidPresaleTime.into());
+    }
+
+    // Ensure pre-sale time doesn't surpass auction time
+    if params.pre_sale_end_time >= params.start_time {
+        return Err(LaunchpadError::InvalidPresaleTime.into());
     }
 
     auction.owner = *ctx.accounts.owner.key;
     auction.name = params.name;
     auction.enabled = params.enabled;
     auction.fixed_amount = params.fixed_amount;
-    auction.unit_price = params.unit_price;
     auction.start_time = params.start_time;
     auction.end_time = params.end_time;
-    auction.token_cap = params.token_cap;
-    auction.remaining_tokens = params.token_cap;
     auction.pay_with_native = params.pay_with_native;
     auction.pre_sale = params.pre_sale;
     auction.pre_sale_start_time = params.pre_sale_start_time;
     auction.pre_sale_end_time = params.pre_sale_end_time;
-    auction.ticket_price = params.ticket_price;
+    auction.tokens_in_pool = params.tokens_in_pool;
+    auction.remaining_tokens = params.tokens_in_pool;
+    auction.token_quantity_per_ticket = params.token_quantity_per_ticket;
+    auction.funding_demand = params.funding_demand;
     Ok(())
 }

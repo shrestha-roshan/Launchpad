@@ -1,7 +1,6 @@
 use crate::{error::LaunchpadError, state::Auction};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
-use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Tranfer_Sol};
 use anchor_spl::token::{
     transfer as transfer_spl, Mint, Token, TokenAccount, Transfer as Transfer_Spl,
 };
@@ -52,7 +51,7 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
     }
 
     // Ensure that the auction has ended
-    if ctx.accounts.clock.unix_timestamp < auction.end_time {
+    if ctx.accounts.clock.unix_timestamp <= auction.end_time {
         return Err(LaunchpadError::AuctionNotEnded.into());
     }
 
@@ -75,8 +74,11 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
         &[bump_seed],
     ]];
 
+    // remaining tokens
+    let remaining_tokens_in_auction_pool = auction.remaining_tokens * LAMPORTS_PER_SOL;
+
     // Transfer if there are any remaining tokens
-    if auction.remaining_tokens > 0 {
+    if remaining_tokens_in_auction_pool > 0 {
         let trans_spl = Transfer_Spl {
             from: ctx.accounts.auction_vault_token_account.to_account_info(),
             to: ctx.accounts.creator_auction_token_account.to_account_info(),
@@ -87,33 +89,36 @@ pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
             trans_spl,
             auction_vault_seed,
         );
-        transfer_spl(ctx, auction.remaining_tokens)?;
+        transfer_spl(ctx, remaining_tokens_in_auction_pool)?;
     }
 
-    //Transfer sol if tokens have been sold
-    if auction.token_cap != auction.remaining_tokens && auction.pay_with_native {
-        let sol_amount = (auction.token_cap - auction.remaining_tokens)
-            * (auction.unit_price / LAMPORTS_PER_SOL);
-        let trans_sol = Tranfer_Sol {
-            from: auction_vault.to_account_info(),
-            to: ctx.accounts.creator.to_account_info(),
-        };
-        let ctx: CpiContext<'_, '_, '_, '_, _> = CpiContext::new_with_signer(
-            ctx.accounts.system_program.to_account_info(),
-            trans_sol,
-            auction_vault_seed,
-        );
-        transfer_sol(ctx, sol_amount)?;
+    // Transfer sol if tokens have been sold
+    // ticket_price (in SOL) calc: funding_demand / no.of tickets
+    let ticket_price = (auction.funding_demand * LAMPORTS_PER_SOL) / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
+    // unit_token_price (in SOL) i.e. 1 auction token is worth how much SOL
+    let unit_token_price = ticket_price / auction.token_quantity_per_ticket;
+
+    if auction.tokens_in_pool != auction.remaining_tokens && auction.pay_with_native {
+        let sol_amount = (auction.tokens_in_pool - auction.remaining_tokens) * unit_token_price;
+
+        **auction_vault.try_borrow_mut_lamports()? = auction_vault
+            .lamports()
+            .checked_sub(sol_amount)
+            .ok_or(ProgramError::InvalidArgument)?;
+ 
+        **creator.try_borrow_mut_lamports()? = creator
+            .lamports()
+            .checked_add(sol_amount)
+            .ok_or(ProgramError::InvalidArgument)?;
     }
 
     // Reset the auction state
     auction.owner = Pubkey::default();
     auction.enabled = false;
     auction.fixed_amount = false;
-    auction.unit_price = 0;
     auction.start_time = 0;
     auction.end_time = 0;
-    auction.token_cap = 0;
+    auction.tokens_in_pool = 0;
     auction.remaining_tokens = 0;
     auction.pay_with_native = false;
     auction.pre_sale = false;
