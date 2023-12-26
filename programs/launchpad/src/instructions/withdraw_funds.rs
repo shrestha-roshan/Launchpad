@@ -41,9 +41,9 @@ pub struct WithdrawFunds<'info> {
 }
 
 pub fn handler(ctx: Context<WithdrawFunds>) -> Result<()> {
-    let auction = &mut ctx.accounts.auction.clone();
+    let auction = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
-    let creator = ctx.accounts.creator.clone();
+    let creator = &ctx.accounts.creator;
 
     // Ensure that the withdrawal is done by the auction creator
     if *creator.key != auction.owner {

@@ -55,12 +55,12 @@ pub struct BuyTokensSol<'info> {
 pub fn handler(ctx: Context<BuyTokensSol>) -> Result<()> {
     let auction: &mut Box<Account<'_, Auction>> = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
-    let buyer = ctx.accounts.buyer.clone();
-    let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
+    let buyer = &ctx.accounts.buyer;
+    let auction_vault_token_account = &ctx.accounts.auction_vault_token_account;
     let token_program = ctx.accounts.token_program.as_ref();
-    let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
+    let buyer_auction_token_account = &ctx.accounts.buyer_auction_token_account;
     let system_program = ctx.accounts.system_program.as_ref();
-    let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
+    let buyer_pda = &mut ctx.accounts.buyer_pda;
 
     // ticket_price (in SOL) calc: funding_demand / no.of tickets
     let ticket_price = (auction.funding_demand * LAMPORTS_PER_SOL) / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
@@ -76,12 +76,12 @@ pub fn handler(ctx: Context<BuyTokensSol>) -> Result<()> {
         return Err(LaunchpadError::NonNativeAuction.into());
     }
 
-    // Ensure if the pre sale has been ended
+    // Ensure if the pre sale has ended
     if auction.pre_sale && ctx.accounts.clock.unix_timestamp < auction.pre_sale_end_time {
         return Err(LaunchpadError::PreSaleNotEnded.into());
     }
 
-    // Ensure that the auction is initialized and live
+    // Ensure that the auction is enabled and live
     if !(auction.enabled
         && (ctx.accounts.clock.unix_timestamp > auction.start_time
             && ctx.accounts.clock.unix_timestamp < auction.end_time))
