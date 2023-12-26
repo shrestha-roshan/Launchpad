@@ -76,6 +76,9 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     let token_program = ctx.accounts.token_program.as_ref();
     let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
 
+    // ticket_price (in SOL) calc: funding_demand / no.of tickets
+    let ticket_price = auction.funding_demand / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
+
     // Ensure that the auction is enabled for spl payments
     if auction.pay_with_native {
         return Err(LaunchpadError::NonSplAuction.into());
@@ -87,12 +90,9 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     }
 
     // Check if the spl token is enough to buy at least one ticket_price
-    if spl_amount != auction.ticket_price {
+    if spl_amount != ticket_price {
         return Err(LaunchpadError::InvalidSolFor1ticket.into());
     }
-
-    // amount of token to send to buyer
-    let token_amount_to_buy = spl_amount / auction.unit_price;
 
     // Check if token amount to buy is greater than 0
     if spl_amount == 0 {
@@ -112,8 +112,12 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
         return Err(LaunchpadError::PreSaleNotEnded.into());
     }
 
+    // amount of token to send to buyer
+    // let auction_token_amount_to_buy = spl_amount / auction.unit_price;
+    let auction_token_amount_to_buy = auction.token_quantity_per_ticket;
+
     // Ensure there are enough tokens remaining for the buyer
-    if auction.remaining_tokens < token_amount_to_buy {
+    if auction.remaining_tokens < auction_token_amount_to_buy {
         return Err(LaunchpadError::InsufficientTokens.into());
     }
 
@@ -142,7 +146,7 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
         transfer,
         auction_vault_seed,
     );
-    anchor_spl::token::transfer(ctx, token_amount_to_buy)?;
+    anchor_spl::token::transfer(ctx, auction_token_amount_to_buy)?;
 
     // Transfer spl from buyer to auction
     let transfer_spl = Transfer {
@@ -156,7 +160,7 @@ pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     anchor_spl::token::transfer(ctx, spl_amount)?;
 
     // Update the remaining tokens in the auction
-    auction.remaining_tokens -= token_amount_to_buy;
+    auction.remaining_tokens -= auction_token_amount_to_buy;
 
     // Update the buyer account
     buyer_pda.participate = true;

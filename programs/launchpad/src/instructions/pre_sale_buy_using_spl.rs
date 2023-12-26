@@ -83,6 +83,9 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     let token_program = ctx.accounts.token_program.as_ref();
     let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
 
+    // ticket_price (in SOL) calc: funding_demand / no.of tickets
+    let ticket_price = auction.funding_demand / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
+
     // Ensure that the buyer has already participated in the auction
     if buyer_pda.participate {
         return Err(LaunchpadError::AlreadyParticipated.into());
@@ -94,7 +97,7 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
     }
 
     // Check if the spl token is enough to buy at least one ticket_price
-    if spl_amount != auction.ticket_price {
+    if spl_amount != ticket_price {
         return Err(LaunchpadError::InvalidSolFor1ticket.into());
     }
 
@@ -114,18 +117,19 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSpl>, spl_amount: u64) -> Result<()> 
         return Err(LaunchpadError::InvalidPresaleTime.into());
     }
 
-    // amount of token to send to buyer
-    let auction_token_amount_to_buy = spl_amount / auction.unit_price;
-
+    
     // Ensure that the auction is enabled for spl payments
     if auction.pay_with_native {
         return Err(LaunchpadError::NonSplAuction.into());
     }
-
+    
     // Ensure that the auction is initialized and live
     if !(auction.enabled && (current_ts > auction.start_time && current_ts < auction.end_time)) {
         return Err(LaunchpadError::InvalidAuction.into());
     }
+    
+    // amount of token to send to buyer
+    let auction_token_amount_to_buy = auction.token_quantity_per_ticket;
 
     // Ensure there are enough tokens remaining for the buyer
     if auction.remaining_tokens < auction_token_amount_to_buy {

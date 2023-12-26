@@ -1,6 +1,7 @@
 use crate::state::Buyer;
 use crate::{error::LaunchpadError, state::Auction};
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use anchor_lang::system_program::{transfer as transfer_sol, Transfer as Transfer_Sol};
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -51,7 +52,7 @@ pub struct BuyTokensSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<BuyTokensSol>) -> Result<()> {
     let auction: &mut Box<Account<'_, Auction>> = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
     let buyer = ctx.accounts.buyer.clone();
@@ -61,7 +62,11 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     let system_program = ctx.accounts.system_program.as_ref();
     let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
 
-    // Ensure that the buyer has already participated in the auction
+    // ticket_price (in SOL) calc: funding_demand / no.of tickets
+    let ticket_price = (auction.funding_demand * LAMPORTS_PER_SOL) / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
+    
+    // Ensure that the buyer has not participated in the auction
+    // This is to restrict same user to participate in same auction multiple times
     if buyer_pda.participate {
         return Err(LaunchpadError::AlreadyParticipated.into());
     }
@@ -69,14 +74,6 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
     // Ensure that the auction is enabled for sol payments
     if !auction.pay_with_native {
         return Err(LaunchpadError::NonNativeAuction.into());
-    }
-
-    // amount of token to send to buyer
-    let token_amount_to_buy = sol_amount / auction.unit_price;
-
-    // Check if the sol is enough to buy at least one ticket_price
-    if sol_amount != auction.ticket_price {
-        return Err(LaunchpadError::InvalidSolFor1ticket.into());
     }
 
     // Ensure if the pre sale has been ended
@@ -92,8 +89,12 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
         return Err(LaunchpadError::InvalidAuction.into());
     }
 
+    // amount of tokens to send to buyer
+    let auction_token_amount_to_buy = auction.token_quantity_per_ticket * LAMPORTS_PER_SOL;
+
     // Ensure there are enough tokens remaining for the buyer
-    if auction.remaining_tokens < token_amount_to_buy {
+    let remaining_tokens_in_auction_pool = auction.remaining_tokens * LAMPORTS_PER_SOL;
+    if remaining_tokens_in_auction_pool < auction_token_amount_to_buy {
         return Err(LaunchpadError::InsufficientTokens.into());
     }
 
@@ -105,7 +106,7 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
 
     let ctx_sol: CpiContext<'_, '_, '_, '_, _> =
         CpiContext::new(system_program.to_account_info(), trns_sol);
-    transfer_sol(ctx_sol, sol_amount)?;
+    transfer_sol(ctx_sol, ticket_price)?;
 
     // Generate auction seed
     let auction_key = auction.key();
@@ -132,10 +133,10 @@ pub fn handler(ctx: Context<BuyTokensSol>, sol_amount: u64) -> Result<()> {
         trns_spl,
         auction_vault_seed,
     );
-    transfer_spl(ctx_spl, token_amount_to_buy)?;
+    transfer_spl(ctx_spl, auction_token_amount_to_buy)?;
 
     // Update the remaining tokens in the auction
-    auction.remaining_tokens -= token_amount_to_buy;
+    auction.remaining_tokens -= auction_token_amount_to_buy/LAMPORTS_PER_SOL;
 
     // Update the buyer account
     buyer_pda.participate = true;
