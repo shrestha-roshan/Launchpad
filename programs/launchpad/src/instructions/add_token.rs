@@ -50,9 +50,9 @@ pub fn handler(ctx: Context<AddToken>) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     let token_program = ctx.accounts.token_program.to_account_info();
 
-    // Ensure that the auction is enabled but not live yet
-    if !(auction.enabled && (ctx.accounts.clock.unix_timestamp < auction.start_time)) {
-        return Err(LaunchpadError::InvalidAuction.into());
+    // Ensure that pre_sale is enabled but not live yet
+    if !(auction.pre_sale && (ctx.accounts.clock.unix_timestamp < auction.pre_sale_start_time)) {
+        return  Err(LaunchpadError::PreSaleAlreadyStarted.into());
     }
 
     let transfer = Transfer {
