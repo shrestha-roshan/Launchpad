@@ -68,13 +68,13 @@ pub struct BuyTokensSpl<'info> {
 pub fn handler(ctx: Context<BuyTokensSpl>, spl_amount: u64) -> Result<()> {
     let auction = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
-    let buyer = ctx.accounts.buyer.clone();
-    let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
-    let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
-    let auction_vault_spl_account = ctx.accounts.auction_vault_bid_token_account.clone();
-    let buyer_spl_account = ctx.accounts.buyer_bid_token_account.clone();
+    let buyer = &ctx.accounts.buyer;
+    let buyer_pda = &mut ctx.accounts.buyer_pda;
+    let auction_vault_token_account = &ctx.accounts.auction_vault_token_account;
+    let auction_vault_spl_account = &ctx.accounts.auction_vault_bid_token_account;
+    let buyer_spl_account = &ctx.accounts.buyer_bid_token_account;
     let token_program = ctx.accounts.token_program.as_ref();
-    let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
+    let buyer_auction_token_account = &ctx.accounts.buyer_auction_token_account;
 
     // ticket_price (in SOL) calc: funding_demand / no.of tickets
     let ticket_price = auction.funding_demand / (auction.tokens_in_pool/auction.token_quantity_per_ticket);

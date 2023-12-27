@@ -61,12 +61,12 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>) -> Result<()> {
     let whitelist = &mut ctx.accounts.whitelist_pda;
     let auction = &mut ctx.accounts.auction;
     let auction_vault: &AccountInfo<'_> = &ctx.accounts.auction_vault;
-    let auction_vault_token_account = ctx.accounts.auction_vault_token_account.clone();
-    let buyer_auction_token_account = ctx.accounts.buyer_auction_token_account.clone();
-    let buyer = ctx.accounts.buyer.clone();
+    let auction_vault_token_account = &ctx.accounts.auction_vault_token_account;
+    let buyer_auction_token_account = &ctx.accounts.buyer_auction_token_account;
+    let buyer = &ctx.accounts.buyer;
     let token_program = ctx.accounts.token_program.as_ref();
     let system_program = ctx.accounts.system_program.as_ref();
-    let buyer_pda = &mut ctx.accounts.buyer_pda.clone();
+    let buyer_pda = &mut ctx.accounts.buyer_pda;
 
     // ticket_price (in SOL) calc: funding_demand / no.of tickets
     let ticket_price = (auction.funding_demand * LAMPORTS_PER_SOL) / (auction.tokens_in_pool/auction.token_quantity_per_ticket);
@@ -82,9 +82,9 @@ pub fn handler(ctx: Context<PreSaleBuyUsingSol>) -> Result<()> {
         return Err(LaunchpadError::PreSaleNotEnabled.into());
     }
 
-    // Ensure presale time is valid
+    // Ensure presale is live
     let current_ts = ctx.accounts.clock.unix_timestamp as i64;
-    if current_ts < auction.pre_sale_start_time && current_ts > auction.pre_sale_end_time {
+    if !(current_ts > auction.pre_sale_start_time && current_ts < auction.pre_sale_end_time) {
         return Err(LaunchpadError::InvalidPresaleTime.into());
     }
 

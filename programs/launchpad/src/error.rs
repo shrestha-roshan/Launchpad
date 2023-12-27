@@ -26,6 +26,8 @@ pub enum LaunchpadError {
     PreSaleNotEnabled,
     #[msg("Invalid Pre Sale Time ")]
     InvalidPresaleTime,
+    #[msg("Pre Sale Already Started")]
+    PreSaleAlreadyStarted,
     #[msg("Pre Sale Not Ended")]
     PreSaleNotEnded,
     #[msg("Invalid Token Amount")]
