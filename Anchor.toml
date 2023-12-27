@@ -15,8 +15,10 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "devnet"
-wallet = "/home/nick619/.config/solana/id.json"
+wallet = "/Users/chou/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/launchpad.ts"
 edge_cases = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/launchpad_edge_cases.ts"
+multi_call = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/multi_whitelist.ts"
+
